@@ -1,0 +1,66 @@
+import { runMigrations } from "@agent-native/core/db";
+
+export default runMigrations(
+  [
+    {
+      version: 1,
+      name: "hackathons-criteria-tasks",
+      sql: `CREATE TABLE IF NOT EXISTS hackathons (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  url TEXT,
+  deadline_at TEXT NOT NULL,
+  summary TEXT,
+  deliverables TEXT NOT NULL DEFAULT '[]',
+  submission_draft TEXT,
+  demo_script TEXT,
+  created_at TEXT NOT NULL DEFAULT (now()),
+  owner_email TEXT NOT NULL DEFAULT 'local@localhost',
+  org_id TEXT,
+  visibility TEXT NOT NULL DEFAULT 'private'
+);
+CREATE TABLE IF NOT EXISTS hackathon_shares (
+  id TEXT PRIMARY KEY,
+  resource_id TEXT NOT NULL,
+  principal_type TEXT NOT NULL,
+  principal_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'viewer',
+  created_by TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (now()),
+  notified_at TEXT
+);
+CREATE TABLE IF NOT EXISTS criteria (
+  id TEXT PRIMARY KEY,
+  hackathon_id TEXT NOT NULL REFERENCES hackathons(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  weight INTEGER NOT NULL CHECK (weight >= 0 AND weight <= 100),
+  description TEXT,
+  score INTEGER CHECK (score IS NULL OR (score >= 0 AND score <= 10)),
+  rationale TEXT,
+  position INTEGER NOT NULL DEFAULT 0,
+  owner_email TEXT NOT NULL,
+  org_id TEXT
+);
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  hackathon_id TEXT NOT NULL REFERENCES hackathons(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  notes TEXT,
+  status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'doing', 'done')),
+  criterion_id TEXT,
+  verdict TEXT CHECK (verdict IS NULL OR verdict IN ('ship', 'cut', 'fake')),
+  court_argument TEXT,
+  recommended_verdict TEXT CHECK (recommended_verdict IS NULL OR recommended_verdict IN ('ship', 'cut', 'fake')),
+  position INTEGER NOT NULL DEFAULT 0,
+  owner_email TEXT NOT NULL,
+  org_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (now())
+);
+CREATE INDEX IF NOT EXISTS hackathons_owner_org_deadline_idx ON hackathons (owner_email, org_id, deadline_at);
+CREATE INDEX IF NOT EXISTS hackathon_shares_resource_idx ON hackathon_shares (resource_id, principal_type, principal_id);
+CREATE INDEX IF NOT EXISTS criteria_hackathon_idx ON criteria (hackathon_id, position);
+CREATE INDEX IF NOT EXISTS tasks_hackathon_idx ON tasks (hackathon_id, position)`,
+    },
+  ],
+  { table: "ship_court_migrations" },
+);

@@ -4,72 +4,47 @@ import {
   useActionQuery,
 } from "@agent-native/core/client/hooks";
 import { useT } from "@agent-native/core/client/i18n";
-import {
-  IconArrowLeft,
-  IconArrowRight,
-  IconChecklist,
-  IconExternalLink,
-  IconGavel,
-  IconPlus,
-  IconScale,
-  IconWriting,
-} from "@tabler/icons-react";
+import { IconArrowLeft, IconCheck } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  askCourtAgent,
-  formatCountdown,
-  localDeadline,
-} from "@/lib/court-agent";
+import { askCourtAgent, Countdown } from "@/lib/court";
 import { cn } from "@/lib/utils";
 
-type Status = "todo" | "doing" | "done";
-type Verdict = "ship" | "cut" | "fake";
+type Verdict = "ship" | "fake" | "cut";
 type Task = {
   id: string;
   title: string;
-  notes: string | null;
-  status: Status;
+  status: "todo" | "doing" | "done";
   criterionId: string | null;
   verdict: Verdict | null;
   recommendedVerdict: Verdict | null;
   courtArgument: string | null;
-  position: number;
 };
 
-const COLUMNS: Status[] = ["todo", "doing", "done"];
 const VERDICTS: Verdict[] = ["ship", "fake", "cut"];
 
-export default function HackathonBoardRoute() {
+/** Open tasks first, cut ones sink, done ones last. */
+function rank(task: Task) {
+  if (task.status === "done") return 2;
+  return task.verdict === "cut" ? 1 : 0;
+}
+
+export default function HackathonRoute() {
   const t = useT();
   const { hackathonId = "" } = useParams();
   const queryClient = useQueryClient();
   const params = useMemo(() => ({ id: hackathonId }), [hackathonId]);
   const queryKey = ["action", "get-hackathon", params];
-  const { data: h, isPending, error } = useActionQuery("get-hackathon", params);
-  const [now, setNow] = useState(() => Date.now());
+  const { data: h, isPending } = useActionQuery("get-hackathon", params);
   const [newTask, setNewTask] = useState("");
-  const [draft, setDraft] = useState("");
-  const [script, setScript] = useState("");
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  useEffect(() => {
-    setDraft(h?.submissionDraft ?? "");
-    setScript(h?.demoScript ?? "");
-  }, [h?.submissionDraft, h?.demoScript]);
+  const onError = (err: unknown) =>
+    toast.error(actionErrorMessage(err) ?? t("court.saveFailed"));
 
   const patchTask = useActionMutation("update-task", {
     onMutate: async (input) => {
@@ -92,383 +67,244 @@ export default function HackathonBoardRoute() {
         queryKey,
         (context as { previous?: unknown } | undefined)?.previous,
       );
-      toast.error(actionErrorMessage(err) ?? t("court.saveFailed"));
+      onError(err);
     },
   });
   const addTasks = useActionMutation("add-tasks", {
     onSuccess: () => setNewTask(""),
-    onError: (err) =>
-      toast.error(actionErrorMessage(err) ?? t("court.saveFailed")),
-  });
-  const saveHackathon = useActionMutation("update-hackathon", {
-    onSuccess: () => toast.success(t("court.saved")),
-    onError: (err) =>
-      toast.error(actionErrorMessage(err) ?? t("court.saveFailed")),
+    onError,
   });
 
-  if (isPending) {
+  if (isPending) return null;
+  if (!h) {
     return (
-      <main className="grid gap-4 p-4 sm:p-6">
-        <Skeleton className="h-28 rounded-2xl" />
-        <div className="grid gap-3 lg:grid-cols-3">
-          {COLUMNS.map((c) => (
-            <Skeleton key={c} className="h-72 rounded-xl" />
-          ))}
-        </div>
-      </main>
-    );
-  }
-  if (!h || error) {
-    return (
-      <main className="p-6">
-        <p className="text-sm text-muted-foreground">{t("court.notFound")}</p>
-        <Link className="mt-3 inline-block text-sm underline" to="/court">
-          {t("court.back")}
-        </Link>
+      <main className="mx-auto max-w-2xl px-4 py-16 text-muted-foreground">
+        {t("court.notFound")}
       </main>
     );
   }
 
-  const left = formatCountdown(h.deadlineAt, now);
-  const criterionName = new Map(h.criteria.map((c) => [c.id, c.name]));
-  const unfinished = h.tasks.filter((task) => task.status !== "done");
-  const context = `Docket hackathon id: ${h.id} ("${h.name}"). Use get-hackathon first.`;
+  const context = `Hackathon id: ${h.id} ("${h.name}"). Call get-hackathon first.`;
+  const groups = [
+    { id: null as string | null, name: null as string | null, weight: null as number | null, score: null as number | null, rationale: null as string | null },
+    ...h.criteria,
+  ]
+    .map((c) => ({
+      ...c,
+      tasks: (h.tasks as Task[])
+        .filter((task) => task.criterionId === c.id)
+        .sort((a, b) => rank(a) - rank(b)),
+    }))
+    .filter((g) => g.id !== null || g.tasks.length);
 
-  function move(task: Task, dir: -1 | 1) {
-    const next = COLUMNS[COLUMNS.indexOf(task.status) + dir];
-    if (next) patchTask.mutate({ id: task.id, status: next });
-  }
-
-  function submitTask(event: React.FormEvent<HTMLFormElement>) {
+  function addTask(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = newTask.trim();
     if (title) addTasks.mutate({ hackathonId: h!.id, tasks: [{ title }] });
   }
 
   return (
-    <main className="flex min-h-full flex-col gap-5 p-4 sm:p-6">
-      <header className="grid gap-4 rounded-2xl border border-border bg-card p-5 md:grid-cols-[1fr_auto_auto] md:items-center">
-        <div className="min-w-0">
-          <Link
-            to="/court"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            {t("court.back")}
-          </Link>
-          <h1 className="mt-1 flex items-center gap-2 truncate text-xl font-semibold tracking-tight">
-            {h.name}
-            {h.url ? (
-              <a
-                href={h.url}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={t("court.openPage")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <IconExternalLink className="size-4" />
-              </a>
-            ) : null}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {localDeadline(h.deadlineAt)}
-          </p>
-        </div>
-        <div
-          className={cn(
-            "rounded-xl px-4 py-2 text-center font-mono",
-            left?.urgent
-              ? "bg-destructive/10 text-destructive"
-              : "bg-muted text-foreground",
-          )}
+    <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <header className="flex items-center gap-3">
+        <Link
+          to="/court"
+          aria-label={t("court.back")}
+          className="text-muted-foreground hover:text-foreground"
         >
-          <div className="text-2xl font-semibold">
-            {left ? t("court.countdown", left) : t("court.closed")}
-          </div>
-          <div className="text-xs uppercase tracking-wide opacity-70">
-            {t("court.timeLeft")}
-          </div>
-        </div>
-        <div className="rounded-xl bg-muted px-4 py-2 text-center">
-          <div className="font-mono text-2xl font-semibold">
-            {h.score ?? "--"}
-            <span className="text-sm opacity-60">/100</span>
-          </div>
-          <div className="text-xs uppercase tracking-wide opacity-70">
-            {t("court.rubricScore")}
-          </div>
-        </div>
+          <IconArrowLeft className="size-5" />
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight">
+          {h.url ? (
+            <a href={h.url} target="_blank" rel="noreferrer" className="hover:underline">
+              {h.name}
+            </a>
+          ) : (
+            h.name
+          )}
+        </h1>
+        <Countdown deadlineAt={h.deadlineAt} className="text-sm" />
       </header>
 
-      <Tabs defaultValue="board" className="flex flex-col gap-4">
-        <TabsList className="self-start">
-          <TabsTrigger value="board">
-            <IconChecklist className="size-4" />
-            {t("court.tabBoard")}
-          </TabsTrigger>
-          <TabsTrigger value="court">
-            <IconGavel className="size-4" />
-            {t("court.tabCourt")}
-            {unfinished.length ? (
-              <Badge variant="secondary" className="ml-1">
-                {unfinished.length}
-              </Badge>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="submission">
-            <IconWriting className="size-4" />
-            {t("court.tabSubmission")}
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="tasks" className="mt-6">
+        <div className="flex items-center justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="tasks">{t("court.tabTasks")}</TabsTrigger>
+            <TabsTrigger value="submission">{t("court.tabSubmission")}</TabsTrigger>
+          </TabsList>
+          <span className="font-mono text-2xl font-semibold tabular-nums">
+            {h.score ?? "–"}
+            <span className="text-sm font-normal text-muted-foreground">/100</span>
+          </span>
+        </div>
 
-        <TabsContent value="board" className="grid gap-5 xl:grid-cols-[1fr_20rem]">
-          <div className="grid gap-4">
-            <form onSubmit={submitTask} className="flex gap-2">
-              <Input
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                placeholder={t("court.newTask")}
-                aria-label={t("court.newTask")}
-                maxLength={200}
-              />
-              <Button
-                type="submit"
-                disabled={!newTask.trim() || addTasks.isPending}
-              >
-                <IconPlus className="size-4" />
-                {t("court.add")}
-              </Button>
-            </form>
-            <div className="grid gap-3 lg:grid-cols-3">
-              {COLUMNS.map((col) => {
-                const items = h.tasks.filter((task) => task.status === col);
-                return (
-                  <section
-                    key={col}
-                    className="min-h-48 rounded-xl border border-border bg-card p-3"
-                  >
-                    <h2 className="mb-3 flex items-center justify-between border-b border-border pb-2 text-sm font-medium">
-                      {t(`court.col_${col}`)}
-                      <span className="text-muted-foreground">
-                        {items.length}
-                      </span>
-                    </h2>
-                    <div className="grid gap-2">
-                      {items.map((task) => (
-                        <article
-                          key={task.id}
-                          className="rounded-lg border border-border bg-background p-2.5"
-                        >
-                          <p
-                            className={cn(
-                              "text-sm",
-                              task.verdict === "cut" &&
-                                "text-muted-foreground line-through",
-                            )}
-                          >
-                            {task.title}
-                          </p>
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {task.criterionId &&
-                            criterionName.get(task.criterionId) ? (
-                              <Badge variant="outline" className="text-[10px]">
-                                {criterionName.get(task.criterionId)}
-                              </Badge>
-                            ) : null}
-                            {task.verdict ? (
-                              <Badge className="text-[10px]">
-                                {t(`court.verdict_${task.verdict}`)}
-                              </Badge>
-                            ) : null}
-                            <span className="ml-auto flex gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="size-7"
-                                disabled={col === "todo"}
-                                aria-label={t("court.moveBack")}
-                                onClick={() => move(task, -1)}
-                              >
-                                <IconArrowLeft className="size-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="size-7"
-                                disabled={col === "done"}
-                                aria-label={t("court.moveForward")}
-                                onClick={() => move(task, 1)}
-                              >
-                                <IconArrowRight className="size-3.5" />
-                              </Button>
-                            </span>
-                          </div>
-                        </article>
-                      ))}
-                      {!items.length ? (
-                        <p className="py-6 text-center text-xs text-muted-foreground">
-                          {t("court.emptyColumn")}
-                        </p>
-                      ) : null}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
+        <TabsContent value="tasks" className="mt-6">
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => askCourtAgent(t("court.reviewPrompt"), context)}>
+              {t("court.review")}
+            </Button>
           </div>
 
-          <aside className="grid content-start gap-3 rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium">{t("court.rubric")}</h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  askCourtAgent(t("court.scorePrompt"), context)
-                }
+          {groups.map((g) => (
+            <section key={g.id ?? "none"} className="mt-6">
+              <h2
+                title={g.rationale ?? undefined}
+                className="flex items-baseline gap-2 border-b border-border pb-2 text-sm font-medium"
               >
-                <IconScale className="size-4" />
-                {t("court.score")}
-              </Button>
-            </div>
-            {h.criteria.map((c) => (
-              <div key={c.id} className="grid gap-1.5">
-                <div className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="truncate font-medium">{c.name}</span>
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                    {c.score ?? "-"}/10 · {c.weight}%
-                  </span>
-                </div>
-                <Progress value={(c.score ?? 0) * 10} />
-                {c.rationale ? (
-                  <p className="text-xs text-muted-foreground">{c.rationale}</p>
+                <span className="flex-1 truncate">{g.name ?? t("court.other")}</span>
+                {g.weight !== null ? (
+                  <>
+                    <span className="font-mono tabular-nums">{g.score ?? "–"}/10</span>
+                    <span className="w-10 text-right font-mono text-muted-foreground tabular-nums">
+                      {g.weight}%
+                    </span>
+                  </>
                 ) : null}
-              </div>
-            ))}
-            {h.deliverables.length ? (
-              <div className="mt-2 border-t border-border pt-3">
-                <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t("court.deliverables")}
-                </h3>
-                <ul className="grid gap-1 text-sm">
-                  {h.deliverables.map((d) => (
-                    <li key={d}>· {d}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </aside>
-        </TabsContent>
-
-        <TabsContent value="court" className="grid gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-            <p className="text-sm text-muted-foreground">
-              {t("court.courtIntro")}
-            </p>
-            <Button
-              onClick={() => askCourtAgent(t("court.convenePrompt"), context)}
-              disabled={!unfinished.length}
-            >
-              <IconGavel className="size-4" />
-              {t("court.convene")}
-            </Button>
-          </div>
-          {unfinished.map((task) => (
-            <article
-              key={task.id}
-              className="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-[1fr_auto] md:items-start"
-            >
-              <div className="min-w-0">
-                <p className="font-medium">{task.title}</p>
-                {task.courtArgument ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {task.recommendedVerdict ? (
-                      <strong className="text-foreground">
-                        {t("court.recommends", {
-                          verdict: t(`court.verdict_${task.recommendedVerdict}`),
-                        })}{" "}
-                      </strong>
-                    ) : null}
-                    {task.courtArgument}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t("court.noArgument")}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-1.5">
-                {VERDICTS.map((v) => (
-                  <Button
-                    key={v}
-                    size="sm"
-                    variant={task.verdict === v ? "default" : "outline"}
-                    onClick={() =>
-                      patchTask.mutate({
-                        id: task.id,
-                        verdict: task.verdict === v ? null : v,
-                      })
-                    }
-                  >
-                    {t(`court.verdict_${v}`)}
-                  </Button>
+              </h2>
+              <ul>
+                {g.tasks.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    onPatch={(patch) => patchTask.mutate({ id: task.id, ...patch })}
+                  />
                 ))}
-              </div>
-            </article>
+              </ul>
+            </section>
           ))}
-          {!unfinished.length ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              {t("court.allDone")}
-            </p>
-          ) : null}
+
+          <form onSubmit={addTask} className="mt-6">
+            <input
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              placeholder={t("court.newTask")}
+              aria-label={t("court.newTask")}
+              maxLength={200}
+              className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </form>
         </TabsContent>
 
-        <TabsContent value="submission" className="grid gap-4 lg:grid-cols-2">
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium">{t("court.draft")}</h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => askCourtAgent(t("court.draftPrompt"), context)}
-              >
-                <IconWriting className="size-4" />
-                {t("court.generate")}
-              </Button>
-            </div>
-            <Textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              rows={18}
-              className="font-mono text-sm"
-              placeholder={t("court.draftPlaceholder")}
-            />
-          </div>
-          <div className="grid gap-2">
-            <h2 className="text-sm font-medium">{t("court.demoScript")}</h2>
-            <Textarea
-              value={script}
-              onChange={(e) => setScript(e.target.value)}
-              rows={18}
-              className="font-mono text-sm"
-              placeholder={t("court.scriptPlaceholder")}
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <Button
-              disabled={saveHackathon.isPending}
-              onClick={() =>
-                saveHackathon.mutate({
-                  id: h.id,
-                  submissionDraft: draft,
-                  demoScript: script,
-                })
-              }
-            >
-              {t("court.save")}
-            </Button>
-          </div>
+        <TabsContent value="submission" className="mt-6">
+          <Submission
+            id={h.id}
+            draft={h.submissionDraft ?? ""}
+            script={h.demoScript ?? ""}
+            onDraft={() => askCourtAgent(t("court.draftPrompt"), context)}
+            onError={onError}
+          />
         </TabsContent>
       </Tabs>
     </main>
+  );
+}
+
+function TaskRow({
+  task,
+  onPatch,
+}: {
+  task: Task;
+  onPatch: (patch: Partial<Pick<Task, "status" | "verdict">>) => void;
+}) {
+  const t = useT();
+  const done = task.status === "done";
+  const cut = !done && task.verdict === "cut";
+  return (
+    <li className="group flex items-center gap-3 border-b border-border/60 py-2.5">
+      <button
+        type="button"
+        aria-label={t(done ? "court.markOpen" : "court.markDone")}
+        onClick={() => onPatch({ status: done ? "todo" : "done" })}
+        className={cn(
+          "flex size-4 shrink-0 items-center justify-center rounded-full border",
+          done ? "border-foreground bg-foreground text-background" : "border-muted-foreground",
+        )}
+      >
+        {done ? <IconCheck className="size-3" stroke={3} /> : null}
+      </button>
+      <span
+        className={cn(
+          "min-w-0 flex-1 text-sm",
+          (done || cut) && "text-muted-foreground",
+          cut && "line-through",
+        )}
+      >
+        {task.title}
+      </span>
+      {!done ? (
+        <span className="flex shrink-0 gap-1" title={task.courtArgument ?? undefined}>
+          {VERDICTS.map((v) => {
+            const ruled = task.verdict === v;
+            const suggested = !task.verdict && task.recommendedVerdict === v;
+            return (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={ruled}
+                onClick={() => onPatch({ verdict: ruled ? null : v })}
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-xs transition-opacity",
+                  ruled
+                    ? "bg-foreground text-background"
+                    : suggested
+                      ? "ring-1 ring-foreground/60"
+                      : "text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100",
+                )}
+              >
+                {t(`court.verdict_${v}`)}
+              </button>
+            );
+          })}
+        </span>
+      ) : null}
+    </li>
+  );
+}
+
+/** Two plain fields that save themselves when you leave them. */
+function Submission({
+  id,
+  draft,
+  script,
+  onDraft,
+  onError,
+}: {
+  id: string;
+  draft: string;
+  script: string;
+  onDraft: () => void;
+  onError: (err: unknown) => void;
+}) {
+  const t = useT();
+  const save = useActionMutation("update-hackathon", { onError });
+  const [values, setValues] = useState({ submissionDraft: draft, demoScript: script });
+  useEffect(() => setValues({ submissionDraft: draft, demoScript: script }), [draft, script]);
+
+  const fields = [
+    { key: "submissionDraft", label: t("court.description"), saved: draft },
+    { key: "demoScript", label: t("court.demoScript"), saved: script },
+  ] as const;
+
+  return (
+    <div className="grid gap-8">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" onClick={onDraft}>
+          {t("court.draft")}
+        </Button>
+      </div>
+      {fields.map((f) => (
+        <label key={f.key} className="grid gap-2">
+          <span className="text-sm font-medium">{f.label}</span>
+          <textarea
+            value={values[f.key]}
+            onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+            onBlur={() => {
+              if (values[f.key] !== f.saved) save.mutate({ id, [f.key]: values[f.key] });
+            }}
+            rows={12}
+            className="w-full resize-y bg-transparent text-sm leading-relaxed outline-none"
+          />
+        </label>
+      ))}
+    </div>
   );
 }

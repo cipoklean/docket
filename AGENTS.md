@@ -34,13 +34,15 @@ Before building common workspace or agent UI, read `agent-native-toolkit`; for s
 
 ## Docket
 
-Hackathon copilot for solo builders. `/court` lists hackathons and imports a new one from a link; `/court/:hackathonId` is the board (Board, Court, Submission tabs). Sign-in lands on `/court`.
+Hackathon copilot for solo builders. `/court` lists hackathons and imports a new one from a link; `/court/:hackathonId` groups tasks under their rubric criterion, with verdicts inline, plus a Submission tab that saves on blur. Sign-in lands on `/court`.
 
 - Import: `read-link` the real page (and rules page), then `create-hackathon`. Never invent a deadline or rubric weight; ask instead.
 - Rubric scores are 0-10 per criterion; the weighted total out of 100 is computed server-side. Score only from tasks with status `done`.
-- Court: the agent sets `recommendedVerdict` + `courtArgument`; only the user sets `verdict` (ship | fake | cut) unless they ask.
+- Review (one button): score every criterion, then the agent sets `recommendedVerdict` + `courtArgument`; only the user sets `verdict` (ship | fake | cut) unless they ask.
 - Times are stored as UTC ISO; send ISO 8601 with an offset and show the user's local time.
 - On board pages `navigation` adds `hackathonId`.
+- UI rule: no taglines, helper text, or secondary labels. If a screen needs them, fix the layout. Details live in tooltips (`title`).
+- Status: the UI shows open/done; `doing` is accepted and shown as open.
 
 | Action | Purpose |
 | --- | --- |

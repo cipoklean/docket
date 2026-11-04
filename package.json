@@ -2,7 +2,7 @@
   "name": "docket",
   "displayName": "Docket",
   "private": true,
-  "description": "Docket: an agent-native hackathon copilot. Paste a link, get a rubric-scored board, a court for cuts, and submission drafts.",
+  "description": "Paste a hackathon link, get a rubric-weighted board, rule checks against your real repo and demo, and a judge pass that names the fixes worth the most points.",
   "type": "module",
   "scripts": {
     "migrate:production": "tsx scripts/migrate-production.ts",

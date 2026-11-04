@@ -1,5 +1,5 @@
 import { defineAction, fail } from "@agent-native/core/action";
-import { and, eq, inArray, isNotNull, ne } from "drizzle-orm";
+import { and, eq, isNotNull, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
@@ -13,7 +13,7 @@ export default defineAction({
     scores: z
       .array(
         z.object({
-          criterionId: z.string().describe("Criterion id"),
+          criterionId: z.string().describe("Criterion id from gather-submission (its name also works)"),
           score: z.coerce.number().int().min(0).max(10),
           rationale: z.string().min(1).max(400).describe("What a judge sees, and the biggest gap"),
         }),
@@ -24,7 +24,7 @@ export default defineAction({
       .array(
         z.object({
           title: z.string().min(1).max(160).describe("A concrete fix, doable before the deadline"),
-          criterionId: z.string().describe("Criterion it moves"),
+          criterionId: z.string().describe("Criterion it moves: id from gather-submission (its name also works)"),
           points: z.coerce
             .number()
             .int()
@@ -43,18 +43,33 @@ export default defineAction({
     const c = schema.criteria;
     const tk = schema.tasks;
     const db = getDb();
-    const ids = [...args.scores.map((s) => s.criterionId), ...args.fixes.map((f) => f.criterionId)];
-    const known = await db
-      .select({ id: c.id })
+    const rows0 = await db
+      .select({ id: c.id, name: c.name })
       .from(c)
-      .where(and(eq(c.hackathonId, h.id), inArray(c.id, ids)));
-    if (known.length !== new Set(ids).size) {
-      fail("One or more criterion ids do not belong to this hackathon.", {
-        errorCode: "unknown_criterion",
-      });
+      .where(eq(c.hackathonId, h.id));
+    // Models often echo a criterion's name, or a mangled id; match leniently.
+    const norm = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const resolve = (ref: string) => {
+      const n = norm(ref);
+      return (
+        rows0.find((r) => r.id === ref.trim()) ??
+        rows0.find((r) => norm(r.name) === n) ??
+        rows0.find((r) => n.length >= 4 && (norm(r.name).startsWith(n) || n.startsWith(norm(r.name)) || r.id.startsWith(ref.trim())))
+      )?.id;
+    };
+    const scores = args.scores.flatMap((s) => {
+      const id = resolve(s.criterionId);
+      return id ? [{ ...s, criterionId: id }] : [];
+    });
+    if (!scores.length) {
+      fail(
+        `No score matched a criterion. Use these ids: ${rows0.map((r) => `${r.id} (${r.name})`).join(", ")}.`,
+        { errorCode: "unknown_criterion" },
+      );
     }
+    const fixes = args.fixes.map((f) => ({ ...f, criterionId: resolve(f.criterionId) ?? null }));
     await db.transaction(async (tx) => {
-      for (const s of args.scores) {
+      for (const s of scores) {
         await tx
           .update(c)
           .set({ score: s.score, rationale: s.rationale })
@@ -63,9 +78,9 @@ export default defineAction({
       await tx
         .delete(tk)
         .where(and(eq(tk.hackathonId, h.id), isNotNull(tk.points), ne(tk.status, "done")));
-      if (args.fixes.length) {
+      if (fixes.length) {
         await tx.insert(tk).values(
-          args.fixes.map((f, i) => ({
+          fixes.map((f, i) => ({
             id: crypto.randomUUID(),
             hackathonId: h.id,
             title: f.title,
@@ -81,10 +96,10 @@ export default defineAction({
     });
     const rows = await db.select({ weight: c.weight, score: c.score }).from(c).where(eq(c.hackathonId, h.id));
     const score = weightedScore(rows);
-    const gain = args.fixes.reduce((n, f) => n + f.points, 0);
+    const gain = fixes.reduce((n, f) => n + f.points, 0);
     return {
       score,
-      message: `Judged ${score ?? "unscored"} / 100. ${args.fixes.length} fixes worth about +${gain}.`,
+      message: `Judged ${score ?? "unscored"} / 100. ${fixes.length} fixes worth about +${gain}.${scores.length < args.scores.length ? ` ${args.scores.length - scores.length} scores matched no criterion and were skipped.` : ""}`,
     };
   },
 });

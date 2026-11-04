@@ -43,6 +43,25 @@ export default function HackathonRoute() {
   const queryKey = ["action", "get-hackathon", params];
   const { data: h, isPending } = useActionQuery("get-hackathon", params);
   const [newTask, setNewTask] = useState("");
+  // Review/Judge run in the background; the button shows it until the board changes.
+  const [busy, setBusy] = useState<{ kind: "review" | "judge"; sig: string } | null>(null);
+  const sig = h
+    ? JSON.stringify([
+        h.criteria.map((c) => [c.score, c.rationale]),
+        h.tasks.map((task) => [task.id, task.recommendedVerdict, task.points]),
+      ])
+    : "";
+  useEffect(() => {
+    if (busy && sig !== busy.sig) setBusy(null);
+  }, [busy, sig]);
+  useEffect(() => {
+    if (!busy) return;
+    const timer = window.setTimeout(() => {
+      setBusy(null);
+      toast(t("court.agentSlow"));
+    }, 240_000);
+    return () => window.clearTimeout(timer);
+  }, [busy, t]);
 
   const onError = (err: unknown) =>
     toast.error(actionErrorMessage(err) ?? t("court.saveFailed"));
@@ -148,12 +167,20 @@ export default function HackathonRoute() {
 
         <TabsContent value="tasks" className="mt-6">
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => askCourtAgent(t("court.reviewPrompt"), context)}>
-              {t("court.review")}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => askCourtAgent(t("court.judgePrompt"), context)}>
-              {t("court.judge")}
-            </Button>
+            {(["review", "judge"] as const).map((kind) => (
+              <Button
+                key={kind}
+                size="sm"
+                variant="outline"
+                disabled={busy !== null}
+                onClick={() => {
+                  setBusy({ kind, sig });
+                  askCourtAgent(t(`court.${kind}Prompt`), context, { openSidebar: false });
+                }}
+              >
+                {busy?.kind === kind ? t(`court.${kind === "judge" ? "judging" : "reviewing"}`) : t(`court.${kind}`)}
+              </Button>
+            ))}
           </div>
 
           {fixes.length ? (

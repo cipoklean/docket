@@ -86,6 +86,11 @@ CREATE INDEX IF NOT EXISTS checks_hackathon_idx ON checks (hackathon_id, positio
       name: "judge-fixes",
       sql: `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS points INTEGER`,
     },
+    {
+      version: 4,
+      name: "judge-guard",
+      sql: `ALTER TABLE hackathons ADD COLUMN IF NOT EXISTS judged_fingerprint TEXT`,
+    },
   ],
   { table: "ship_court_migrations" },
 );

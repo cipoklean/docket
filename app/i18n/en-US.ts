@@ -16,7 +16,7 @@ const messages = {
     judging: "Judging…",
     agentSlow: "Still working. Open chats to follow it.",
     fixes: "Fixes",
-    judgePrompt: "Judge this entry as a strict hackathon judge would. Call gather-submission, then save-judgment right away: score every criterion 0-10 from what a judge can actually see (README, description, demo, checks), not plans or open tasks, using the criterion ids gather-submission returned, plus the 3 fixes that gain the most weighted points before the deadline. Don't read other pages. Reply in two lines: the score, and the fix to do first.",
+    judgePrompt: "Judge this entry as a strict hackathon judge would. Call gather-submission. If it says unchanged, stop and reply that nothing changed. Otherwise call save-judgment right away: score every criterion 0-10 from what a judge can actually see, not plans or open tasks, citing the evidence ids gather-submission returned for each score, plus the 3 fixes that gain the most weighted points before the deadline, each with the proof that will show it done. Don't read other pages. Reply in two lines: the score, and the fix to do first.",
     repoUrl: "Repo link",
     demoUrl: "Demo video link",
     check: "Check",

@@ -22,6 +22,8 @@ export const hackathons = pgTable("hackathons", {
   /** The user's submission repo and demo video, checked by verify-checks. */
   repoUrl: text("repo_url"),
   demoUrl: text("demo_url"),
+  /** Fingerprint of the submission at the last judge pass (server/lib/guard.ts). */
+  judgedFingerprint: text("judged_fingerprint"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),

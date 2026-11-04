@@ -27,7 +27,7 @@ const messages = {
     other: "Other",
     review: "Review",
     reviewing: "Reviewing…",
-    reviewPrompt: "Review this board. Score each rubric criterion honestly from tasks marked done, then recommend ship, fake, or cut for every open task with a one-line argument. Don't rule; I decide.",
+    reviewPrompt: "Review this board. Recommend ship, fake, or cut for every open task in one recommend-verdicts call, each with a one-line argument. Don't score and don't rule; I decide.",
     draft: "Draft",
     draftPrompt: "Draft the submission description and a 2-minute demo script from what's actually done on this board, mapped to the rubric. Save both with update-hackathon.",
     description: "Description",

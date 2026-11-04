@@ -7,12 +7,12 @@ import { requireHackathon, STATUSES, VERDICTS } from "../server/lib/court.js";
 
 export default defineAction({
   description:
-    'Patch a task: title, notes, status ("todo" | "doing" | "done"), linked criterion, the court ruling (verdict "ship" | "cut" | "fake", or null to clear), or the agent\'s recommendation (recommendedVerdict + courtArgument). Only passed fields change. Only the user rules a verdict unless they ask you to.',
+    'Patch one task: title, notes, status ("todo" | "doing" | "done"), linked criterion, or the verdict ("ship" | "cut" | "fake", null to clear). Send only the fields that change. Only the user rules a verdict unless they ask you to. For recommendations use recommend-verdicts.',
   schema: z.object({
     id: z.string().describe("Task id"),
-    title: z.string().min(1).max(200).optional().describe("New title"),
+    title: z.string().min(1).max(200).nullish().describe("New title"),
     notes: z.string().max(2000).nullable().optional().describe("Notes"),
-    status: z.enum(STATUSES).optional().describe('"todo", "doing" or "done"'),
+    status: z.enum(STATUSES).nullish().describe('"todo", "doing" or "done"'),
     criterionId: z
       .string()
       .nullable()
@@ -23,17 +23,6 @@ export default defineAction({
       .nullable()
       .optional()
       .describe('Court ruling: "ship", "cut", "fake", or null'),
-    recommendedVerdict: z
-      .enum(VERDICTS)
-      .nullable()
-      .optional()
-      .describe("Agent's recommended ruling for the court"),
-    courtArgument: z
-      .string()
-      .max(1200)
-      .nullable()
-      .optional()
-      .describe("Agent's one-paragraph case for its recommended ruling"),
   }),
   outputSchema: z.object({ id: z.string(), updated: z.array(z.string()) }),
   run: async (args, ctx) => {
@@ -48,7 +37,10 @@ export default defineAction({
     await requireHackathon(task.hackathonId);
     const { id, ...rest } = args;
     const patch = Object.fromEntries(
-      Object.entries(rest).filter(([, v]) => v !== undefined),
+      Object.entries(rest).filter(
+        ([k, v]) =>
+          v !== undefined && !(v === null && (k === "title" || k === "status")),
+      ),
     ) as Partial<typeof schema.tasks.$inferInsert>;
     const updated = Object.keys(patch);
     if (!updated.length) fail("Nothing to update.", { errorCode: "empty_patch" });

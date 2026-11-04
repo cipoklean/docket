@@ -43,6 +43,7 @@ Hackathon copilot for solo builders. `/court` lists hackathons and imports a new
 - On board pages `navigation` adds `hackathonId`.
 - UI rule: no taglines, helper text, or secondary labels. If a screen needs them, fix the layout. Details live in tooltips (`title`).
 - Checks: hackathon rules saved with `add-checks` and verified by `verify-checks` against `repoUrl`/`demoUrl` (GitHub API, the demo page's own metadata). Deterministic, no model; only `manual` checks are ticked by hand. Logic in `server/lib/verify.ts`.
+- Judge: `gather-submission` then `save-judgment`. Fixes are tasks with `points` set; a new pass replaces open fixes and keeps done ones.
 - Status: the UI shows open/done; `doing` is accepted and shown as open.
 
 | Action | Purpose |
@@ -58,3 +59,5 @@ Hackathon copilot for solo builders. `/court` lists hackathons and imports a new
 | add-checks | Save submission rules as verifiable checks |
 | update-check | Tick a manual check, rename, or remove |
 | verify-checks | Verify all automatic checks against the real repo and demo |
+| gather-submission | Everything a judge sees: rubric, README, description, demo, checks, past winners |
+| save-judgment | Judge scores plus up to 3 point-tagged fixes pinned on the board |

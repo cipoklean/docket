@@ -60,6 +60,8 @@ export const tasks = pgTable("tasks", {
   recommendedVerdict: text("recommended_verdict", {
     enum: ["ship", "cut", "fake"],
   }),
+  /** Set on judge-pass fixes: estimated weighted points gained out of 100. */
+  points: integer("points"),
   position: integer("position").notNull().default(0),
   ownerEmail: text("owner_email").notNull(),
   orgId: text("org_id"),

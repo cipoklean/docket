@@ -24,6 +24,7 @@ type Task = {
   verdict: Verdict | null;
   recommendedVerdict: Verdict | null;
   courtArgument: string | null;
+  points: number | null;
 };
 
 const VERDICTS: Verdict[] = ["ship", "fake", "cut"];
@@ -92,10 +93,17 @@ export default function HackathonRoute() {
     .map((c) => ({
       ...c,
       tasks: (h.tasks as Task[])
-        .filter((task) => task.criterionId === c.id)
+        .filter((task) => task.points === null && task.criterionId === c.id)
         .sort((a, b) => rank(a) - rank(b)),
     }))
     .filter((g) => g.id !== null || g.tasks.length);
+  // Judge-pass fixes sit above everything, worth-most first.
+  const fixes = (h.tasks as Task[])
+    .filter((task) => task.points !== null)
+    .sort((a, b) => rank(a) - rank(b) || (b.points ?? 0) - (a.points ?? 0));
+  const fixGain = fixes
+    .filter((f) => f.status !== "done" && f.verdict !== "cut")
+    .reduce((n, f) => n + (f.points ?? 0), 0);
 
   function addTask(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -139,11 +147,34 @@ export default function HackathonRoute() {
         </div>
 
         <TabsContent value="tasks" className="mt-6">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={() => askCourtAgent(t("court.reviewPrompt"), context)}>
               {t("court.review")}
             </Button>
+            <Button size="sm" variant="outline" onClick={() => askCourtAgent(t("court.judgePrompt"), context)}>
+              {t("court.judge")}
+            </Button>
           </div>
+
+          {fixes.length ? (
+            <section className="mt-6">
+              <h2 className="flex items-baseline gap-2 border-b border-border pb-2 text-sm font-medium">
+                <span className="flex-1">{t("court.fixes")}</span>
+                {fixGain ? (
+                  <span className="font-mono tabular-nums">+{fixGain}</span>
+                ) : null}
+              </h2>
+              <ul>
+                {fixes.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    onPatch={(patch) => patchTask.mutate({ id: task.id, ...patch })}
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {groups.map((g) => (
             <section key={g.id ?? "none"} className="mt-6">
@@ -239,6 +270,11 @@ function TaskRow({
       >
         {task.title}
       </span>
+      {task.points !== null ? (
+        <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+          +{task.points}
+        </span>
+      ) : null}
       {!done ? (
         <span className="flex shrink-0 gap-1" title={task.courtArgument ?? undefined}>
           {VERDICTS.map((v) => {

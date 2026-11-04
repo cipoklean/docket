@@ -79,6 +79,7 @@ export const taskOut = z.object({
   verdict: z.enum(VERDICTS).nullable(),
   recommendedVerdict: z.enum(VERDICTS).nullable(),
   courtArgument: z.string().nullable(),
+  points: z.number().nullable(),
   position: z.number(),
 });
 
@@ -136,6 +137,7 @@ export async function loadDetail(id: string) {
         verdict: schema.tasks.verdict,
         recommendedVerdict: schema.tasks.recommendedVerdict,
         courtArgument: schema.tasks.courtArgument,
+        points: schema.tasks.points,
         position: schema.tasks.position,
       })
       .from(schema.tasks)

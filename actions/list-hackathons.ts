@@ -8,7 +8,7 @@ import { getDb, schema } from "../server/db/index.js";
 
 export default defineAction({
   description:
-    "List the hackathons on the user's Ship Court boards, soonest deadline first.",
+    "List the hackathons on the user's Docket boards, soonest deadline first.",
   schema: z.object({}),
   outputSchema: z.object({
     hackathons: z.array(
@@ -24,7 +24,7 @@ export default defineAction({
   readOnly: true,
   link: () => ({
     url: buildDeepLink({ view: "court", to: "/court" }),
-    label: "Open Ship Court",
+    label: "Open Docket",
   }),
   run: async () => {
     const { hackathons, hackathonShares } = schema;

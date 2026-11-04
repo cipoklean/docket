@@ -1,4 +1,4 @@
-# ship-court — Development Guide
+# docket — Development Guide
 
 This guide is for development-mode agents editing this app's source code. For app operations and tools, see AGENTS.md.
 

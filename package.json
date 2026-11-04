@@ -1,8 +1,8 @@
 {
-  "name": "ship-court",
-  "displayName": "Ship Court",
+  "name": "docket",
+  "displayName": "Docket",
   "private": true,
-  "description": "Workspace app for Ship Court.",
+  "description": "Docket: an agent-native hackathon copilot. Paste a link, get a rubric-scored board, a court for cuts, and submission drafts.",
   "type": "module",
   "scripts": {
     "migrate:production": "tsx scripts/migrate-production.ts",

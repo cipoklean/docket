@@ -32,7 +32,7 @@ Before building common workspace or agent UI, read `agent-native-toolkit`; for s
 
 - Guarded verification: run `pnpm agent-native:doctor`; fix findings before done.
 
-## Ship Court
+## Docket
 
 Hackathon copilot for solo builders. `/court` lists hackathons and imports a new one from a link; `/court/:hackathonId` is the board (Board, Court, Submission tabs). Sign-in lands on `/court`.
 

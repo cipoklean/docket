@@ -1,9 +1,9 @@
 const messages = {
   court: {
-    nav: "Ship Court",
+    nav: "Docket",
     import: "Import",
     importPlaceholder: "Paste a hackathon link",
-    importPrompt: "Import the hackathon at {{url}} into Ship Court.",
+    importPrompt: "Import the hackathon at {{url}} into Docket.",
     empty: "No hackathons yet. Paste a link to build your first board.",
     countdown: "{{d}}d {{h}}h {{m}}m",
     closed: "Closed",
@@ -29,7 +29,7 @@ const messages = {
     deliverables: "Deliverables",
     courtIntro: "Every unfinished task stands trial: ship it, fake it for the demo, or cut it. You rule.",
     convene: "Convene court",
-    convenePrompt: "Convene Ship Court. For each unfinished task, weigh time left against rubric impact and recommend ship, fake, or cut with a short argument. Don't rule; I decide.",
+    convenePrompt: "Call the docket. For each unfinished task, weigh time left against rubric impact and recommend ship, fake, or cut with a short argument. Don't rule; I decide.",
     recommends: "Recommends {{verdict}}.",
     noArgument: "No argument heard yet.",
     allDone: "Docket clear. Every task is done.",

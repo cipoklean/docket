@@ -132,7 +132,7 @@ export default function HackathonBoardRoute() {
   const left = formatCountdown(h.deadlineAt, now);
   const criterionName = new Map(h.criteria.map((c) => [c.id, c.name]));
   const unfinished = h.tasks.filter((task) => task.status !== "done");
-  const context = `Ship Court hackathon id: ${h.id} ("${h.name}"). Use get-hackathon first.`;
+  const context = `Docket hackathon id: ${h.id} ("${h.name}"). Use get-hackathon first.`;
 
   function move(task: Task, dir: -1 | 1) {
     const next = COLUMNS[COLUMNS.indexOf(task.status) + dir];

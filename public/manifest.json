@@ -1,7 +1,7 @@
 {
-  "name": "Ship Court",
-  "short_name": "Ship Court",
-  "description": "Workspace app for Ship Court.",
+  "name": "Docket",
+  "short_name": "Docket",
+  "description": "Docket: an agent-native hackathon copilot. Paste a link, get a rubric-scored board, a court for cuts, and submission drafts.",
   "start_url": "./home",
   "background_color": "#111111",
   "theme_color": "#18181B",

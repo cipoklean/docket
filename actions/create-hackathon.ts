@@ -7,7 +7,7 @@ import { toIso } from "../server/lib/court.js";
 
 export default defineAction({
   description:
-    "Create a hackathon board from its rules: name, deadline, rubric criteria (weights in percent, should total 100), deliverables, and starter tasks. Read the page with fetch-page first; never invent a deadline or rubric the page does not state.",
+    "Create a hackathon board from its rules: name, deadline, rubric criteria (weights in percent, should total 100), deliverables, and starter tasks. Read the page with read-link first; never invent a deadline or rubric the page does not state.",
   schema: z.object({
     name: z.string().min(1).describe("Hackathon name"),
     url: z.string().url().optional().describe("Hackathon page URL"),

@@ -36,7 +36,7 @@ Before building common workspace or agent UI, read `agent-native-toolkit`; for s
 
 Hackathon copilot for solo builders. `/court` lists hackathons and imports a new one from a link; `/court/:hackathonId` is the board (Board, Court, Submission tabs). Sign-in lands on `/court`.
 
-- Import: `fetch-page` the real page (and rules page), then `create-hackathon`. Never invent a deadline or rubric weight; ask instead.
+- Import: `read-link` the real page (and rules page), then `create-hackathon`. Never invent a deadline or rubric weight; ask instead.
 - Rubric scores are 0-10 per criterion; the weighted total out of 100 is computed server-side. Score only from tasks with status `done`.
 - Court: the agent sets `recommendedVerdict` + `courtArgument`; only the user sets `verdict` (ship | fake | cut) unless they ask.
 - Times are stored as UTC ISO; send ISO 8601 with an offset and show the user's local time.
@@ -44,7 +44,7 @@ Hackathon copilot for solo builders. `/court` lists hackathons and imports a new
 
 | Action | Purpose |
 | --- | --- |
-| fetch-page | Read a public page's text |
+| read-link | Read any link (pages, JS sites, PDFs, X posts, GitHub) as Markdown |
 | create-hackathon | Board from name, deadline, rubric, deliverables, tasks |
 | list-hackathons | Boards, soonest deadline first |
 | get-hackathon | Full board with scores and tasks |

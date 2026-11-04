@@ -92,6 +92,9 @@ importers:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.3.0
+      '@mozilla/readability':
+        specifier: 0.6.0
+        version: 0.6.0
       '@openrouter/ai-sdk-provider':
         specifier: ^2.9.1
         version: 2.10.0(ai@6.0.258(zod@4.6.7))(zod@4.6.7)
@@ -122,6 +125,9 @@ importers:
       isbot:
         specifier: ^5
         version: 5.2.2
+      linkedom:
+        specifier: 0.18.15
+        version: 0.18.15
       node-pty:
         specifier: ^1.1.0
         version: 1.1.0
@@ -137,6 +143,12 @@ importers:
       react-router:
         specifier: 8.1.0
         version: 8.1.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      turndown:
+        specifier: 7.2.4
+        version: 7.2.4
+      unpdf:
+        specifier: ^2.1.0
+        version: 2.1.0
       use-sync-external-store:
         specifier: ^1.6.0
         version: 1.7.0(react@19.3.1)
@@ -246,6 +258,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.3.0(@types/react@19.3.0)
+      '@types/turndown':
+        specifier: ^5.0.6
+        version: 5.0.6
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
@@ -2875,6 +2890,9 @@ packages:
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
+  '@types/turndown@5.0.6':
+    resolution: {integrity: sha512-ru00MoyeeouE5BX4gRL+6m/BsDfbRayOskWqUvh7CLGW+UXxHQItqALa38kKnOiZPqJrtzJUgAC2+F0rL1S4Pg==}
+
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
 
@@ -5167,6 +5185,15 @@ packages:
 
   unist-util-visit@5.2.0:
     resolution: {integrity: sha512-fpsYs/VVoZxfGY9/j3FQpZmN8wdLJaV1Pt38AaJNZu9uKIHcFU3halCdBveEq1HGKO1OEfJY65w1zvoFV1b3qQ==}
+
+  unpdf@2.1.0:
+    resolution: {integrity: sha512-G/Hsrm++g0EoubUhV8TDFItq6oQ+FUu9EMvIRtHUwseKXB0iJoCvaLvBGOpYUBqyvggv/XfxhYYtohL2QpE3xQ==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      '@napi-rs/canvas': ^0.1.69 || ^1.0.0
+    peerDependenciesMeta:
+      '@napi-rs/canvas':
+        optional: true
 
   unstorage@2.0.0-beta.0:
     resolution: {integrity: sha512-VeTY+zQ3ozrNtIFBRQRuSwanHdpuRH+4t/ZzchZIVQO8/oKq2xl7fJ9c+z76tWJDW/BEXSEuzpHOxqoAl6B64A==}
@@ -8028,6 +8055,8 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@types/turndown@5.0.6': {}
+
   '@types/unist@2.0.11': {}
 
   '@types/unist@3.0.3': {}
@@ -10424,6 +10453,8 @@ snapshots:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.1.0
+
+  unpdf@2.1.0: {}
 
   unstorage@2.0.0-beta.0: {}
 

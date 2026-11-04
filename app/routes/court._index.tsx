@@ -30,7 +30,7 @@ export default function CourtIndexRoute() {
     if (!target) return;
     askCourtAgent(
       t("court.importPrompt", { url: target }),
-      "Ship Court import: read the page with fetch-page (and its rules page if linked), then create-hackathon with the real deadline, rubric weights, deliverables, and 6-10 starter tasks. Then navigate to the new board.",
+      "Ship Court import: read the page with read-link (and its rules page if linked), then create-hackathon with the real deadline, rubric weights, deliverables, and 6-10 starter tasks. Then navigate to the new board.",
     );
     setUrl("");
   }

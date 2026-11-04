@@ -77,7 +77,7 @@ export function createVerifier(links: Links) {
   /** README and package.json checks can't tell "missing" from "can't see it" without this. */
   const repoHidden = async () => (await repoInfo()).status === 404;
 
-  async function run(kind: CheckKind, param: string | null): Promise<CheckResult> {
+  async function run(kind: CheckKind, param: string | null, label = ""): Promise<CheckResult> {
     switch (kind) {
       case "manual":
         return { status: "unknown", evidence: "" };
@@ -142,6 +142,9 @@ export function createVerifier(links: Links) {
         if (!links.demoUrl) return { status: "unknown", evidence: "Add your demo link" };
         try {
           const url = assertPublicUrl(links.demoUrl);
+          // A rule that asks for a Clips recording isn't met by any other video.
+          if ((param?.toLowerCase() === "clips" || /\bclips?\b/i.test(label)) && !isClipsLink(url))
+            return { status: "fail", evidence: `Not a Clips link (${url.hostname})` };
           const res = await get(url.href, "text/html,*/*");
           return res.ok
             ? { status: "pass", evidence: `Opens publicly (${res.status})` }
@@ -167,9 +170,9 @@ export function createVerifier(links: Links) {
   }
 
   return {
-    async check(kind: CheckKind, param: string | null): Promise<CheckResult> {
+    async check(kind: CheckKind, param: string | null, label?: string): Promise<CheckResult> {
       try {
-        return await run(kind, param);
+        return await run(kind, param, label);
       } catch (err) {
         return {
           status: "unknown",
@@ -178,6 +181,13 @@ export function createVerifier(links: Links) {
       }
     },
   };
+}
+
+/** Hosted Clips (clips.agent-native.com) or a self-hosted Clips share link. */
+function isClipsLink(url: URL) {
+  const host = url.hostname.toLowerCase();
+  if (host === "clips.agent-native.com" || host.endsWith(".clips.agent-native.com")) return true;
+  return host.includes("clips") && url.pathname.startsWith("/share/");
 }
 
 /** Video length in seconds from the page's own metadata, or null. */

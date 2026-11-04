@@ -48,7 +48,7 @@ export default defineAction({
     const verifier = createVerifier({ repoUrl: h.repoUrl, demoUrl: h.demoUrl });
     const checkedAt = new Date().toISOString();
     const results = await Promise.all(
-      rows.map(async (r) => ({ id: r.id, label: r.label, ...(await verifier.check(r.kind, r.param)) })),
+      rows.map(async (r) => ({ id: r.id, label: r.label, ...(await verifier.check(r.kind, r.param, r.label)) })),
     );
     await Promise.all(
       results.map((r) =>

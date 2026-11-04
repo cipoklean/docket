@@ -7,7 +7,7 @@ import { requireHackathon } from "../server/lib/court.js";
 
 export default defineAction({
   description:
-    "Add submission rules from the hackathon's rules as checks Docket can verify. Use the most specific kind: repo_public (repo must be public), readme (README explains the project), license (open-source license required), uses_tech (param = the required technology, e.g. 'agent-native'), demo_live (demo link must open publicly), video_length (param = max minutes), manual (anything else, e.g. 'Submit the project form'). One check per rule; label is the rule in a few words.",
+    "Add submission rules from the hackathon's rules as checks Docket can verify. Use the most specific kind: repo_public (repo must be public), readme (README explains the project), license (open-source license required), uses_tech (param = the required technology, e.g. 'agent-native'), demo_live (demo link must open publicly; param = 'clips' when the rules require a Clips recording), video_length (param = max minutes), manual (anything else, e.g. 'Submit the project form'). One check per rule; label is the rule in a few words.",
   schema: z.object({
     hackathonId: z.string().describe("Hackathon id"),
     checks: z

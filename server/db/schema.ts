@@ -19,6 +19,9 @@ export const hackathons = pgTable("hackathons", {
   deliverables: text("deliverables").notNull().default("[]"),
   submissionDraft: text("submission_draft"),
   demoScript: text("demo_script"),
+  /** The user's submission repo and demo video, checked by verify-checks. */
+  repoUrl: text("repo_url"),
+  demoUrl: text("demo_url"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),
@@ -63,4 +66,35 @@ export const tasks = pgTable("tasks", {
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),
+});
+
+export const CHECK_KINDS = [
+  "repo_public",
+  "readme",
+  "license",
+  "uses_tech",
+  "demo_live",
+  "video_length",
+  "manual",
+] as const;
+
+/**
+ * One submission rule from the hackathon's rules, checked against the user's
+ * real repo and demo. `param` carries the kind's argument (a tech name for
+ * uses_tech, max minutes for video_length).
+ */
+export const checks = pgTable("checks", {
+  id: text("id").primaryKey(),
+  hackathonId: text("hackathon_id").notNull(),
+  label: text("label").notNull(),
+  kind: text("kind", { enum: CHECK_KINDS }).notNull(),
+  param: text("param"),
+  status: text("status", { enum: ["unknown", "pass", "fail"] })
+    .notNull()
+    .default("unknown"),
+  evidence: text("evidence"),
+  checkedAt: text("checked_at"),
+  position: integer("position").notNull().default(0),
+  ownerEmail: text("owner_email").notNull(),
+  orgId: text("org_id"),
 });

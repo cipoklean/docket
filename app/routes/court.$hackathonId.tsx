@@ -4,10 +4,10 @@ import {
   useActionQuery,
 } from "@agent-native/core/client/hooks";
 import { useT } from "@agent-native/core/client/i18n";
-import { IconArrowLeft, IconCheck } from "@tabler/icons-react";
+import { IconCheck } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -106,13 +106,6 @@ export default function HackathonRoute() {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
       <header className="flex items-center gap-3">
-        <Link
-          to="/court"
-          aria-label={t("court.back")}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <IconArrowLeft className="size-5" />
-        </Link>
         <h1 className="line-clamp-2 min-w-0 flex-1 break-words text-xl font-semibold tracking-tight">
           {h.url ? (
             <a href={h.url} target="_blank" rel="noreferrer" className="hover:underline">
@@ -129,6 +122,14 @@ export default function HackathonRoute() {
         <div className="flex items-center justify-between gap-3">
           <TabsList>
             <TabsTrigger value="tasks">{t("court.tabTasks")}</TabsTrigger>
+            <TabsTrigger value="checks">
+              {t("court.tabChecks")}
+              {h.checks.length ? (
+                <span className="ms-1.5 font-mono text-xs tabular-nums text-muted-foreground">
+                  {h.checks.filter((c) => c.status === "pass").length}/{h.checks.length}
+                </span>
+              ) : null}
+            </TabsTrigger>
             <TabsTrigger value="submission">{t("court.tabSubmission")}</TabsTrigger>
           </TabsList>
           <span className="font-mono text-2xl font-semibold tabular-nums">
@@ -182,6 +183,14 @@ export default function HackathonRoute() {
               className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
             />
           </form>
+        </TabsContent>
+
+        <TabsContent value="checks" className="mt-6">
+          <Checks
+            hackathon={h}
+            onFindRules={() => askCourtAgent(t("court.rulesPrompt"), context)}
+            onError={onError}
+          />
         </TabsContent>
 
         <TabsContent value="submission" className="mt-6">
@@ -305,6 +314,144 @@ function Submission({
           />
         </label>
       ))}
+    </div>
+  );
+}
+
+type Check = {
+  id: string;
+  label: string;
+  kind: string;
+  status: "unknown" | "pass" | "fail";
+  evidence: string | null;
+};
+
+/**
+ * The hackathon's rules as checks, verified against the real repo and demo.
+ * Automatic checks only turn green from verify-checks; manual ones are ticked.
+ */
+function Checks({
+  hackathon,
+  onFindRules,
+  onError,
+}: {
+  hackathon: {
+    id: string;
+    repoUrl: string | null;
+    demoUrl: string | null;
+    checks: Check[];
+  };
+  onFindRules: () => void;
+  onError: (err: unknown) => void;
+}) {
+  const t = useT();
+  const queryClient = useQueryClient();
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ["action", "get-hackathon"] });
+  const save = useActionMutation("update-hackathon", { onError, onSuccess: refresh });
+  const verify = useActionMutation("verify-checks", { onError, onSuccess: refresh });
+  const tick = useActionMutation("update-check", { onError, onSuccess: refresh });
+  const [links, setLinks] = useState({
+    repoUrl: hackathon.repoUrl ?? "",
+    demoUrl: hackathon.demoUrl ?? "",
+  });
+  useEffect(
+    () => setLinks({ repoUrl: hackathon.repoUrl ?? "", demoUrl: hackathon.demoUrl ?? "" }),
+    [hackathon.repoUrl, hackathon.demoUrl],
+  );
+
+  const fields = [
+    { key: "repoUrl", label: t("court.repoUrl"), saved: hackathon.repoUrl ?? "" },
+    { key: "demoUrl", label: t("court.demoUrl"), saved: hackathon.demoUrl ?? "" },
+  ] as const;
+
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-1">
+        {fields.map((f) => (
+          <input
+            key={f.key}
+            type="url"
+            value={links[f.key]}
+            placeholder={f.label}
+            aria-label={f.label}
+            onChange={(e) => setLinks((v) => ({ ...v, [f.key]: e.target.value }))}
+            onBlur={() => {
+              if (links[f.key].trim() !== f.saved)
+                save.mutate({ id: hackathon.id, [f.key]: links[f.key].trim() });
+            }}
+            className="w-full border-b border-border bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-foreground"
+          />
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        {hackathon.checks.length ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={verify.isPending}
+            onClick={() => verify.mutate({ hackathonId: hackathon.id })}
+          >
+            {verify.isPending ? t("court.checking") : t("court.check")}
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" onClick={onFindRules}>
+            {t("court.findRules")}
+          </Button>
+        )}
+      </div>
+
+      <ul>
+        {hackathon.checks.map((c) => {
+          const manual = c.kind === "manual";
+          const dot = (
+            <span
+              className={cn(
+                "flex size-4 shrink-0 items-center justify-center rounded-full border",
+                c.status === "pass" && "border-foreground bg-foreground text-background",
+                c.status === "fail" && "border-destructive bg-destructive",
+                c.status === "unknown" && "border-muted-foreground",
+              )}
+            >
+              {c.status === "pass" ? <IconCheck className="size-3" stroke={3} /> : null}
+            </span>
+          );
+          return (
+            <li key={c.id} className="flex items-center gap-3 border-b border-border/60 py-2.5">
+              {manual ? (
+                <button
+                  type="button"
+                  aria-label={t(c.status === "pass" ? "court.markOpen" : "court.markDone")}
+                  onClick={() =>
+                    tick.mutate({
+                      hackathonId: hackathon.id,
+                      id: c.id,
+                      done: c.status !== "pass",
+                    })
+                  }
+                >
+                  {dot}
+                </button>
+              ) : (
+                dot
+              )}
+              <span className="min-w-0 flex-1 text-sm">{c.label}</span>
+              {c.evidence ? (
+                <span
+                  className={cn(
+                    "max-w-[50%] truncate text-right text-xs",
+                    c.status === "fail" ? "text-destructive" : "text-muted-foreground",
+                  )}
+                  title={c.evidence}
+                >
+                  {c.evidence}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

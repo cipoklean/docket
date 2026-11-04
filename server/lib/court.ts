@@ -82,6 +82,16 @@ export const taskOut = z.object({
   position: z.number(),
 });
 
+export const checkOut = z.object({
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(schema.CHECK_KINDS),
+  param: z.string().nullable(),
+  status: z.enum(["unknown", "pass", "fail"]),
+  evidence: z.string().nullable(),
+  checkedAt: z.string().nullable(),
+});
+
 export const hackathonDetailOut = z.object({
   id: z.string(),
   name: z.string(),
@@ -91,15 +101,18 @@ export const hackathonDetailOut = z.object({
   deliverables: z.array(z.string()),
   submissionDraft: z.string().nullable(),
   demoScript: z.string().nullable(),
+  repoUrl: z.string().nullable(),
+  demoUrl: z.string().nullable(),
   score: z.number().nullable(),
   criteria: z.array(criterionOut),
   tasks: z.array(taskOut),
+  checks: z.array(checkOut),
 });
 
 export async function loadDetail(id: string) {
   const h = await requireHackathon(id);
   const db = getDb();
-  const [criteria, tasks] = await Promise.all([
+  const [criteria, tasks, checks] = await Promise.all([
     db
       .select({
         id: schema.criteria.id,
@@ -129,6 +142,20 @@ export async function loadDetail(id: string) {
       .where(eq(schema.tasks.hackathonId, id))
       .orderBy(asc(schema.tasks.position))
       .limit(300),
+    db
+      .select({
+        id: schema.checks.id,
+        label: schema.checks.label,
+        kind: schema.checks.kind,
+        param: schema.checks.param,
+        status: schema.checks.status,
+        evidence: schema.checks.evidence,
+        checkedAt: schema.checks.checkedAt,
+      })
+      .from(schema.checks)
+      .where(eq(schema.checks.hackathonId, id))
+      .orderBy(asc(schema.checks.position))
+      .limit(60),
   ]);
   return {
     id: h.id,
@@ -139,8 +166,11 @@ export async function loadDetail(id: string) {
     deliverables: parseDeliverables(h.deliverables),
     submissionDraft: h.submissionDraft,
     demoScript: h.demoScript,
+    repoUrl: h.repoUrl,
+    demoUrl: h.demoUrl,
     score: weightedScore(criteria),
     criteria,
     tasks,
+    checks,
   };
 }

@@ -49,7 +49,7 @@ export class ReadError extends Error {
   }
 }
 
-function assertPublicUrl(raw: string): URL {
+export function assertPublicUrl(raw: string): URL {
   let url: URL;
   try {
     url = new URL(raw);
@@ -74,7 +74,7 @@ function assertPublicUrl(raw: string): URL {
   return url;
 }
 
-async function get(url: string, accept = "*/*") {
+export async function get(url: string, accept = "*/*") {
   return fetch(url, {
     redirect: "follow",
     headers: { "user-agent": UA, accept, "accept-language": "en" },

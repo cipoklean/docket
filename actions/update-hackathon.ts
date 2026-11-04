@@ -7,7 +7,7 @@ import { requireHackathon, toIso } from "../server/lib/court.js";
 
 export default defineAction({
   description:
-    "Patch a hackathon: name, deadline, summary, deliverables, submission draft (Markdown project description), or demo script. Only the fields you pass change.",
+    "Patch a hackathon: name, deadline, summary, deliverables, submission draft (Markdown project description), demo script, or the user's repo and demo links. Only the fields you pass change. Pass an empty string to clear a link.",
   schema: z.object({
     id: z.string().describe("Hackathon id"),
     name: z.string().min(1).optional().describe("New name"),
@@ -31,6 +31,16 @@ export default defineAction({
       .max(10000)
       .optional()
       .describe("Timed demo video script, e.g. 0:00-0:15 hook"),
+    repoUrl: z
+      .string()
+      .max(500)
+      .optional()
+      .describe("The user's submission repo URL (GitHub)"),
+    demoUrl: z
+      .string()
+      .max(500)
+      .optional()
+      .describe("The user's public demo video URL"),
   }),
   outputSchema: z.object({ id: z.string(), updated: z.array(z.string()) }),
   run: async (args, ctx) => {
@@ -46,6 +56,8 @@ export default defineAction({
     if (args.submissionDraft !== undefined)
       patch.submissionDraft = args.submissionDraft;
     if (args.demoScript !== undefined) patch.demoScript = args.demoScript;
+    if (args.repoUrl !== undefined) patch.repoUrl = args.repoUrl.trim() || null;
+    if (args.demoUrl !== undefined) patch.demoUrl = args.demoUrl.trim() || null;
     const updated = Object.keys(patch);
     if (!updated.length) {
       fail("Nothing to update.", { errorCode: "empty_patch" });

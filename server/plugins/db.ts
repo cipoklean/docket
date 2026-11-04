@@ -61,6 +61,26 @@ CREATE INDEX IF NOT EXISTS hackathon_shares_resource_idx ON hackathon_shares (re
 CREATE INDEX IF NOT EXISTS criteria_hackathon_idx ON criteria (hackathon_id, position);
 CREATE INDEX IF NOT EXISTS tasks_hackathon_idx ON tasks (hackathon_id, position)`,
     },
+    {
+      version: 2,
+      name: "submission-checks",
+      sql: `ALTER TABLE hackathons ADD COLUMN IF NOT EXISTS repo_url TEXT;
+ALTER TABLE hackathons ADD COLUMN IF NOT EXISTS demo_url TEXT;
+CREATE TABLE IF NOT EXISTS checks (
+  id TEXT PRIMARY KEY,
+  hackathon_id TEXT NOT NULL REFERENCES hackathons(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('repo_public', 'readme', 'license', 'uses_tech', 'demo_live', 'video_length', 'manual')),
+  param TEXT,
+  status TEXT NOT NULL DEFAULT 'unknown' CHECK (status IN ('unknown', 'pass', 'fail')),
+  evidence TEXT,
+  checked_at TEXT,
+  position INTEGER NOT NULL DEFAULT 0,
+  owner_email TEXT NOT NULL,
+  org_id TEXT
+);
+CREATE INDEX IF NOT EXISTS checks_hackathon_idx ON checks (hackathon_id, position)`,
+    },
   ],
   { table: "ship_court_migrations" },
 );

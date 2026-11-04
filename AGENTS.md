@@ -34,7 +34,7 @@ Before building common workspace or agent UI, read `agent-native-toolkit`; for s
 
 ## Docket
 
-Hackathon copilot for solo builders. `/court` lists hackathons and imports a new one from a link; `/court/:hackathonId` groups tasks under their rubric criterion, with verdicts inline, plus a Submission tab that saves on blur. Sign-in lands on `/court`.
+Hackathon copilot for solo builders. `/court` lists hackathons and imports a new one from a link; `/court/:hackathonId` groups tasks under their rubric criterion, with verdicts inline, a Checks tab, and a Submission tab that saves on blur. No sidebar: the top bar holds the Docket logo (home), settings, chats, and the agent toggle. Sign-in lands on `/court`.
 
 - Import: `read-link` the real page (and rules page), then `create-hackathon`. Never invent a deadline or rubric weight; ask instead.
 - Rubric scores are 0-10 per criterion; the weighted total out of 100 is computed server-side. Score only from tasks with status `done`.
@@ -42,6 +42,7 @@ Hackathon copilot for solo builders. `/court` lists hackathons and imports a new
 - Times are stored as UTC ISO; send ISO 8601 with an offset and show the user's local time.
 - On board pages `navigation` adds `hackathonId`.
 - UI rule: no taglines, helper text, or secondary labels. If a screen needs them, fix the layout. Details live in tooltips (`title`).
+- Checks: hackathon rules saved with `add-checks` and verified by `verify-checks` against `repoUrl`/`demoUrl` (GitHub API, the demo page's own metadata). Deterministic, no model; only `manual` checks are ticked by hand. Logic in `server/lib/verify.ts`.
 - Status: the UI shows open/done; `doing` is accepted and shown as open.
 
 | Action | Purpose |
@@ -50,7 +51,10 @@ Hackathon copilot for solo builders. `/court` lists hackathons and imports a new
 | create-hackathon | Board from name, deadline, rubric, deliverables, tasks |
 | list-hackathons | Boards, soonest deadline first |
 | get-hackathon | Full board with scores and tasks |
-| update-hackathon | Patch deadline, summary, deliverables, submission draft, demo script |
+| update-hackathon | Patch deadline, summary, deliverables, submission draft, demo script, repo/demo links |
 | add-tasks | Append tasks |
 | update-task | Patch status, criterion, verdict, recommendation |
 | score-rubric | Write 0-10 scores with rationale |
+| add-checks | Save submission rules as verifiable checks |
+| update-check | Tick a manual check, rename, or remove |
+| verify-checks | Verify all automatic checks against the real repo and demo |

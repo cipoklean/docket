@@ -73,6 +73,10 @@ export function createVerifier(links: Links) {
     evidence: links.repoUrl ? "Not a GitHub repo link" : "Add your repo link",
   };
 
+  const unreadable: CheckResult = { status: "fail", evidence: "Repo is private or doesn't exist" };
+  /** README and package.json checks can't tell "missing" from "can't see it" without this. */
+  const repoHidden = async () => (await repoInfo()).status === 404;
+
   async function run(kind: CheckKind, param: string | null): Promise<CheckResult> {
     switch (kind) {
       case "manual":
@@ -90,6 +94,7 @@ export function createVerifier(links: Links) {
 
       case "readme": {
         if (!repo) return noRepo;
+        if (await repoHidden()) return unreadable;
         const text = await readme();
         if (text === null) return { status: "fail", evidence: "No README found" };
         const words = text.split(/\s+/).filter(Boolean).length;
@@ -101,6 +106,7 @@ export function createVerifier(links: Links) {
       case "license": {
         if (!repo) return noRepo;
         const r = await repoInfo();
+        if (r.status === 404) return unreadable;
         if (r.status !== 200) return { status: "unknown", evidence: "Repo not readable" };
         const name = r.body?.license?.spdx_id ?? r.body?.license?.name;
         return name && name !== "NOASSERTION"
@@ -112,6 +118,7 @@ export function createVerifier(links: Links) {
         if (!repo) return noRepo;
         const needle = (param ?? "").trim().toLowerCase();
         if (!needle) return { status: "unknown", evidence: "No technology named" };
+        if (await repoHidden()) return unreadable;
         const [pkg, text] = await Promise.all([packageJson(), readme()]);
         if (pkg) {
           try {

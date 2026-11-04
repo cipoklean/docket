@@ -6,7 +6,7 @@ import {
 import { useT } from "@agent-native/core/client/i18n";
 import { IconCheck } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 
@@ -51,9 +51,22 @@ export default function HackathonRoute() {
         h.tasks.map((task) => [task.id, task.recommendedVerdict, task.points]),
       ])
     : "";
+  // A ref, not state: a fast double tap lands before the button re-renders disabled.
+  const busyRef = useRef(false);
   useEffect(() => {
+    busyRef.current = busy !== null;
     if (busy && sig !== busy.sig) setBusy(null);
   }, [busy, sig]);
+  // The run can end without changing the board (same scores again); stop waiting then too.
+  useEffect(() => {
+    const onRunning = (event: Event) => {
+      if ((event as CustomEvent<{ isRunning?: boolean }>).detail?.isRunning !== false) return;
+      setBusy(null);
+      queryClient.invalidateQueries({ queryKey: ["action", "get-hackathon"] });
+    };
+    window.addEventListener("agentNative.chatRunning", onRunning);
+    return () => window.removeEventListener("agentNative.chatRunning", onRunning);
+  }, [queryClient]);
   useEffect(() => {
     if (!busy) return;
     const timer = window.setTimeout(() => {
@@ -174,6 +187,8 @@ export default function HackathonRoute() {
                 variant="outline"
                 disabled={busy !== null}
                 onClick={() => {
+                  if (busyRef.current) return;
+                  busyRef.current = true;
                   setBusy({ kind, sig });
                   askCourtAgent(t(`court.${kind}Prompt`), context, { openSidebar: false });
                 }}
@@ -439,7 +454,9 @@ function Checks({
             placeholder={f.label}
             aria-label={f.label}
             onChange={(e) => setLinks((v) => ({ ...v, [f.key]: e.target.value }))}
-            onBlur={() => {
+            onBlur={(e) => {
+              // Tapping Check saves the links itself; saving here too would race it.
+              if ((e.relatedTarget as HTMLElement | null)?.dataset.verify) return;
               if (links[f.key].trim() !== f.saved)
                 save.mutate({ id: hackathon.id, [f.key]: links[f.key].trim() });
             }}
@@ -453,8 +470,15 @@ function Checks({
           <Button
             size="sm"
             variant="outline"
+            data-verify="true"
             disabled={verify.isPending}
-            onClick={() => verify.mutate({ hackathonId: hackathon.id })}
+            onClick={() =>
+              verify.mutate({
+                hackathonId: hackathon.id,
+                repoUrl: links.repoUrl,
+                demoUrl: links.demoUrl,
+              })
+            }
           >
             {verify.isPending ? t("court.checking") : t("court.check")}
           </Button>

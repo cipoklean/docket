@@ -9,7 +9,11 @@ import { createVerifier } from "../server/lib/verify.js";
 export default defineAction({
   description:
     "Verify every automatic check of a hackathon against the user's real repo and demo links (GitHub API, the demo page itself). Deterministic: no model judgment. Manual checks are left as the user set them.",
-  schema: z.object({ hackathonId: z.string().describe("Hackathon id") }),
+  schema: z.object({
+    hackathonId: z.string().describe("Hackathon id"),
+    repoUrl: z.string().max(500).optional().describe("Save this repo link first, then verify"),
+    demoUrl: z.string().max(500).optional().describe("Save this demo link first, then verify"),
+  }),
   outputSchema: z.object({
     pass: z.number(),
     fail: z.number(),
@@ -23,10 +27,19 @@ export default defineAction({
       }),
     ),
   }),
-  run: async ({ hackathonId }, ctx) => {
+  run: async ({ hackathonId, repoUrl, demoUrl }, ctx) => {
     if (!ctx?.userEmail) fail("Sign in first.", { statusCode: 401 });
-    const h = await requireHackathon(hackathonId);
     const db = getDb();
+    // Links typed and checked in one tap are saved here, so the check never
+    // reads the old ones.
+    const patch: { repoUrl?: string | null; demoUrl?: string | null } = {};
+    if (repoUrl !== undefined) patch.repoUrl = repoUrl.trim() || null;
+    if (demoUrl !== undefined) patch.demoUrl = demoUrl.trim() || null;
+    if (Object.keys(patch).length) {
+      await requireHackathon(hackathonId);
+      await db.update(schema.hackathons).set(patch).where(eq(schema.hackathons.id, hackathonId));
+    }
+    const h = await requireHackathon(hackathonId);
     const rows = await db
       .select()
       .from(schema.checks)

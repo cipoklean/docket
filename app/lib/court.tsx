@@ -5,12 +5,16 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /** Hand an AI-shaped job (import, review, drafting) to the agent sidebar. */
-export function askCourtAgent(message: string, context?: string) {
+export function askCourtAgent(
+  message: string,
+  context?: string,
+  { openSidebar = true }: { openSidebar?: boolean } = {},
+) {
   sendToAgentChat({
     message,
     ...(context ? { context } : {}),
     submit: true,
-    openSidebar: true,
+    openSidebar,
   });
 }
 

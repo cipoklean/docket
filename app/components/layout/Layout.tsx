@@ -24,7 +24,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { APP_TITLE } from "@/lib/app-config";
-import { HOME_PATH, isChatPathname } from "@/lib/chat-paths";
+import { isChatPathname } from "@/lib/chat-paths";
 import { TAB_ID } from "@/lib/tab-id";
 
 // Not lazy() like Header: the inspector wraps the page, so a Suspense fallback
@@ -40,17 +40,6 @@ const Header = lazy(() =>
 
 interface LayoutProps {
   children: React.ReactNode;
-}
-
-const SIDEBAR_COLLAPSE_KEY = "chat.sidebar.collapsed";
-
-function routeOwnsToolbar(pathname: string): boolean {
-  return (
-    pathname === HOME_PATH ||
-    isChatPathname(pathname) ||
-    pathname === "/database" ||
-    pathname.startsWith("/extensions")
-  );
 }
 
 /**
@@ -84,10 +73,9 @@ export function Layout({ children }: LayoutProps) {
 }
 
 function LayoutShell({ children }: LayoutProps) {
-  const location = useLocation();
   const t = useT();
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const location = useLocation();
+  const [chatsOpen, setChatsOpen] = useState(false);
   const isChatRoute = isChatPathname(location.pathname);
   // Settings brings its own navigation, header, and agent toggle, so it
   // renders full width.
@@ -105,62 +93,29 @@ function LayoutShell({ children }: LayoutProps) {
   });
 
   useEffect(() => {
-    setMobileSidebarOpen(false);
+    setChatsOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
-    const closeMobileSidebar = () => setMobileSidebarOpen(false);
-    window.addEventListener("agent-chat:open-thread", closeMobileSidebar);
-    return () => {
-      window.removeEventListener("agent-chat:open-thread", closeMobileSidebar);
-    };
+    const close = () => setChatsOpen(false);
+    window.addEventListener("agent-chat:open-thread", close);
+    return () => window.removeEventListener("agent-chat:open-thread", close);
   }, []);
 
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
-      if (stored !== null) setSidebarCollapsed(stored === "1");
-    } catch {
-      // Ignore storage access errors; the default collapsed state still works.
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        SIDEBAR_COLLAPSE_KEY,
-        sidebarCollapsed ? "1" : "0",
-      );
-    } catch {
-      // Ignore storage access errors.
-    }
-  }, [sidebarCollapsed]);
-
+  const openChats = () => setChatsOpen(true);
   const pageTitle = useHeaderTitle();
   const pageActions = useHeaderActions();
-  // Until the chat route publishes its title and toolbar here, the AgentKit
-  // header must stay visible on phones or the thread loses both.
-  const chatHeaderInAppBar =
-    isChatRoute && (pageTitle != null || pageActions != null);
-  const openMobileSidebar = () => setMobileSidebarOpen(true);
-  const ownsToolbar = routeOwnsToolbar(location.pathname);
   const contentFrame = (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
-      {isChatRoute ? (
+      {settingsOwnsChrome ? null : isChatRoute ? (
         <MobileAppBar
-          className="md:hidden"
-          onOpenNavigation={openMobileSidebar}
           title={pageTitle ?? APP_TITLE}
           actions={pageActions}
+          onOpenChats={openChats}
         />
-      ) : ownsToolbar ? (
-        <MobileAppBar
-          className="md:hidden"
-          onOpenNavigation={openMobileSidebar}
-        />
-      ) : settingsOwnsChrome ? null : (
+      ) : (
         <Suspense fallback={<div className="h-12 shrink-0" />}>
-          <Header onOpenMobileSidebar={openMobileSidebar} />
+          <Header onOpenChats={openChats} />
         </Suspense>
       )}
       <main className="agent-native-app-main min-w-0 flex-1 overflow-y-auto overscroll-contain">
@@ -172,37 +127,18 @@ function LayoutShell({ children }: LayoutProps) {
   return (
     <HeaderActionsProvider>
       <div className="agent-layout-shell chat-layout-shell flex h-screen w-full overflow-hidden bg-background text-foreground">
-        {settingsOwnsChrome ? null : (
-          <div
-            data-collapsed={sidebarCollapsed ? "true" : "false"}
-            className="agent-layout-left-drawer hidden md:block"
-          >
-            <Sidebar
-              collapsed={sidebarCollapsed}
-              onCollapsedChange={setSidebarCollapsed}
-            />
-          </div>
-        )}
-        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <SheetContent
-            side="left"
-            className="w-[var(--chat-sidebar-width)] p-0"
-          >
-            <SheetTitle className="sr-only">
-              {t("navigation.navigation")}
-            </SheetTitle>
+        <Sheet open={chatsOpen} onOpenChange={setChatsOpen}>
+          <SheetContent side="left" className="w-[var(--chat-sidebar-width)] p-0">
+            <SheetTitle className="sr-only">{t("navigation.navigation")}</SheetTitle>
             <SheetDescription className="sr-only">
               {t("navigation.navigationDescription")}
             </SheetDescription>
             <Sidebar collapsed={false} collapsible={false} />
           </SheetContent>
         </Sheet>
-        {isChatRoute ? (
+        {isChatRoute || settingsOwnsChrome ? (
           <div
             data-agent-chat-canvas="true"
-            data-chat-header-in-app-bar={
-              chatHeaderInAppBar ? "true" : undefined
-            }
             className="agent-layout-main-surface flex min-w-0 flex-1 overflow-hidden"
           >
             {contentFrame}

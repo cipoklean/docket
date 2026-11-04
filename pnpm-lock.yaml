@@ -146,6 +146,9 @@ importers:
       turndown:
         specifier: 7.2.4
         version: 7.2.4
+      undici:
+        specifier: ^7.30.1
+        version: 7.30.1
       unpdf:
         specifier: ^2.1.0
         version: 2.1.0

@@ -3,7 +3,7 @@ import { and, eq, isNotNull, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
-import { requireHackathon, weightedScore } from "../server/lib/court.js";
+import { criterionResolver, requireHackathon, weightedScore } from "../server/lib/court.js";
 
 export default defineAction({
   description:
@@ -47,16 +47,7 @@ export default defineAction({
       .select({ id: c.id, name: c.name })
       .from(c)
       .where(eq(c.hackathonId, h.id));
-    // Models often echo a criterion's name, or a mangled id; match leniently.
-    const norm = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-    const resolve = (ref: string) => {
-      const n = norm(ref);
-      return (
-        rows0.find((r) => r.id === ref.trim()) ??
-        rows0.find((r) => norm(r.name) === n) ??
-        rows0.find((r) => n.length >= 4 && (norm(r.name).startsWith(n) || n.startsWith(norm(r.name)) || r.id.startsWith(ref.trim())))
-      )?.id;
-    };
+    const resolve = criterionResolver(rows0);
     const scores = args.scores.flatMap((s) => {
       const id = resolve(s.criterionId);
       return id ? [{ ...s, criterionId: id }] : [];

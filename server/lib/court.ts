@@ -176,3 +176,24 @@ export async function loadDetail(id: string) {
     checks,
   };
 }
+
+/**
+ * Map a criterion ref to its id. Models often echo a criterion's name, or a
+ * mangled id, so match by id, then normalized name, then prefix.
+ */
+export function criterionResolver(rows: { id: string; name: string }[]) {
+  const norm = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return (ref: string): string | undefined => {
+    const r = ref.trim();
+    const n = norm(ref);
+    return (
+      rows.find((c) => c.id === r) ??
+      rows.find((c) => norm(c.name) === n) ??
+      rows.find(
+        (c) =>
+          n.length >= 4 &&
+          (norm(c.name).startsWith(n) || n.startsWith(norm(c.name)) || c.id.startsWith(r)),
+      )
+    )?.id;
+  };
+}

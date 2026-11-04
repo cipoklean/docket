@@ -1,9 +1,9 @@
 import { defineAction, fail } from "@agent-native/core/action";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
-import { requireHackathon, weightedScore } from "../server/lib/court.js";
+import { criterionResolver, requireHackathon, weightedScore } from "../server/lib/court.js";
 
 export default defineAction({
   description:
@@ -13,7 +13,7 @@ export default defineAction({
     scores: z
       .array(
         z.object({
-          criterionId: z.string().describe("Criterion id from get-hackathon"),
+          criterionId: z.string().describe("Criterion id from get-hackathon (its name also works)"),
           score: z.coerce.number().int().min(0).max(10).describe("0-10"),
           rationale: z
             .string()
@@ -36,18 +36,20 @@ export default defineAction({
     const h = await requireHackathon(args.hackathonId);
     const c = schema.criteria;
     const db = getDb();
-    const ids = args.scores.map((s) => s.criterionId);
-    const known = await db
-      .select({ id: c.id })
-      .from(c)
-      .where(and(eq(c.hackathonId, h.id), inArray(c.id, ids)));
-    if (known.length !== new Set(ids).size) {
-      fail("One or more criterion ids do not belong to this hackathon.", {
+    const resolve = criterionResolver(
+      await db.select({ id: c.id, name: c.name }).from(c).where(eq(c.hackathonId, h.id)),
+    );
+    const scores = args.scores.flatMap((s) => {
+      const id = resolve(s.criterionId);
+      return id ? [{ ...s, criterionId: id }] : [];
+    });
+    if (!scores.length) {
+      fail("No score matched a criterion. Use the criterion ids from get-hackathon.", {
         errorCode: "unknown_criterion",
       });
     }
     await db.transaction(async (tx) => {
-      for (const s of args.scores) {
+      for (const s of scores) {
         await tx
           .update(c)
           .set({ score: s.score, rationale: s.rationale })

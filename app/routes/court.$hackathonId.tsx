@@ -113,7 +113,7 @@ export default function HackathonRoute() {
         >
           <IconArrowLeft className="size-5" />
         </Link>
-        <h1 className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight">
+        <h1 className="line-clamp-2 min-w-0 flex-1 break-words text-xl font-semibold tracking-tight">
           {h.url ? (
             <a href={h.url} target="_blank" rel="noreferrer" className="hover:underline">
               {h.name}
@@ -122,7 +122,7 @@ export default function HackathonRoute() {
             h.name
           )}
         </h1>
-        <Countdown deadlineAt={h.deadlineAt} className="text-sm" />
+        <Countdown deadlineAt={h.deadlineAt} className="shrink-0 text-sm" />
       </header>
 
       <Tabs defaultValue="tasks" className="mt-6">

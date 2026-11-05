@@ -7,7 +7,7 @@ import { requireHackathon } from "../server/lib/court.js";
 
 export default defineAction({
   description:
-    "Add one or more tasks to a hackathon board, appended in order. Optionally link each to a rubric criterion id.",
+    "Add one or more tasks to a hackathon board, appended in order. Optionally link each to a rubric criterion id. A title already on the board is skipped.",
   schema: z.object({
     hackathonId: z.string().describe("Hackathon id"),
     tasks: z
@@ -39,7 +39,21 @@ export default defineAction({
       .from(schema.tasks)
       .where(eq(schema.tasks.hackathonId, h.id));
     const start = (agg?.top ?? -1) + 1;
-    const rows = args.tasks.map((t, i) => ({
+    // A repeated import must not double the board: skip titles already there.
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+    const existing = await db
+      .select({ title: schema.tasks.title })
+      .from(schema.tasks)
+      .where(eq(schema.tasks.hackathonId, h.id));
+    const seen = new Set(existing.map((t) => norm(t.title)));
+    const fresh = args.tasks.filter((t) => {
+      const k = norm(t.title);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    if (!fresh.length) return { ids: [], message: "Every task is already on the board." };
+    const rows = fresh.map((t, i) => ({
       id: crypto.randomUUID(),
       hackathonId: h.id,
       title: t.title,

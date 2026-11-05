@@ -190,7 +190,13 @@ export default function HackathonRoute() {
                   if (busyRef.current) return;
                   busyRef.current = true;
                   setBusy({ kind, sig });
-                  askCourtAgent(t(`court.${kind}Prompt`), context, { openSidebar: false });
+                  void askCourtAgent(t(`court.${kind}Prompt`), context, {
+                    openSidebar: false,
+                  }).then((delivered) => {
+                    if (delivered) return;
+                    busyRef.current = false;
+                    setBusy(null);
+                  });
                 }}
               >
                 {busy?.kind === kind ? t(`court.${kind === "judge" ? "judging" : "reviewing"}`) : t(`court.${kind}`)}
@@ -261,7 +267,7 @@ export default function HackathonRoute() {
         <TabsContent value="checks" className="mt-6">
           <Checks
             hackathon={h}
-            onFindRules={() => askCourtAgent(t("court.rulesPrompt"), context)}
+            onFindRules={() => void askCourtAgent(t("court.rulesPrompt"), context)}
             onError={onError}
           />
         </TabsContent>
@@ -271,7 +277,7 @@ export default function HackathonRoute() {
             id={h.id}
             draft={h.submissionDraft ?? ""}
             script={h.demoScript ?? ""}
-            onDraft={() => askCourtAgent(t("court.draftPrompt"), context)}
+            onDraft={() => void askCourtAgent(t("court.draftPrompt"), context)}
             onError={onError}
           />
         </TabsContent>

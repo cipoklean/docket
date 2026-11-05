@@ -51,15 +51,17 @@ export default function CourtIndexRoute() {
       host = new URL(target).hostname.replace(/^www\./, "");
     } catch {}
     setPending({ host, known: ids, failed: false });
-    askCourtAgent(t("court.importPrompt", { url: target }), undefined, {
+    void askCourtAgent(t("court.importPrompt", { url: target }), undefined, {
       openSidebar: false,
+    }).then((delivered) => {
+      if (!delivered) setPending((p) => (p ? { ...p, failed: true } : p));
     });
     setUrl("");
   }
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-16">
-      <form onSubmit={importHackathon}>
+      <form onSubmit={importHackathon} noValidate>
         <input
           type="url"
           required

@@ -1,21 +1,32 @@
-import { sendToAgentChat } from "@agent-native/core/client/agent-chat";
+import { sendToAgentChatAndConfirm } from "@agent-native/core/client/agent-chat";
 import { useT } from "@agent-native/core/client/i18n";
 import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
 /** Hand an AI-shaped job (import, review, drafting) to the agent sidebar. */
-export function askCourtAgent(
+/**
+ * Send a prompt to the agent. The chat drops a submit that no composer claims
+ * within a few seconds (a slow first load), so retry until one confirms it.
+ * Resolves false when the agent never received it.
+ */
+export async function askCourtAgent(
   message: string,
   context?: string,
   { openSidebar = true }: { openSidebar?: boolean } = {},
-) {
-  sendToAgentChat({
-    message,
-    ...(context ? { context } : {}),
-    submit: true,
-    openSidebar,
-  });
+): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const { delivered } = await sendToAgentChatAndConfirm({
+      message,
+      ...(context ? { context } : {}),
+      submit: true,
+      openSidebar,
+      chatTarget: "local",
+    });
+    if (delivered) return true;
+    await new Promise((r) => window.setTimeout(r, 2000));
+  }
+  return false;
 }
 
 function useNow(intervalMs = 30_000) {

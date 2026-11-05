@@ -1,5 +1,7 @@
 import { defineAction, fail } from "@agent-native/core/action";
 import { buildDeepLink } from "@agent-native/core/server";
+import { accessFilter } from "@agent-native/core/sharing";
+import { and, count, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
@@ -7,7 +9,7 @@ import { toIso } from "../server/lib/court.js";
 
 export default defineAction({
   description:
-    "Create a hackathon board from its rules: name, deadline, prize pool, rubric criteria (weights in percent, should total 100), deliverables, and starter tasks. Read the page with read-link first; never invent a deadline or rubric the page does not state.",
+    "Create a hackathon board from its rules. Importing a URL that already has a board returns that board instead of a copy: name, deadline, prize pool, rubric criteria (weights in percent, should total 100), deliverables, and starter tasks. Read the page with read-link first; never invent a deadline or rubric the page does not state.",
   schema: z.object({
     name: z.string().min(1).describe("Hackathon name"),
     url: z.string().url().optional().describe("Hackathon page URL"),
@@ -85,6 +87,8 @@ export default defineAction({
       ctx?.userEmail ?? fail("Sign in first.", { statusCode: 401 });
     const orgId = ctx?.orgId ?? null;
     const deadlineAt = toIso(args.deadlineAt, "deadlineAt");
+    const existing = args.url ? await findByUrl(args.url) : null;
+    if (existing) return existing;
     const id = crypto.randomUUID();
     const weightTotal = args.criteria.reduce((s, c) => s + c.weight, 0);
     const criteriaRows = args.criteria.map((c, i) => ({
@@ -142,3 +146,51 @@ export default defineAction({
     };
   },
 });
+
+/** Same page, ignoring protocol, www, trailing slash, query and hash. */
+function pageKey(url: string) {
+  try {
+    const u = new URL(url);
+    return `${u.hostname.replace(/^www\./, "")}${u.pathname.replace(/\/+$/, "")}`.toLowerCase();
+  } catch {
+    return url.trim().toLowerCase();
+  }
+}
+
+// One page, one board: a repeated import (a retried or doubled chat
+// submission) returns the board that already exists.
+async function findByUrl(url: string) {
+  const { hackathons, hackathonShares, criteria, tasks } = schema;
+  const db = getDb();
+  const key = pageKey(url);
+  const rows = await db
+    .select({
+      id: hackathons.id,
+      name: hackathons.name,
+      url: hackathons.url,
+      deadlineAt: hackathons.deadlineAt,
+    })
+    .from(hackathons)
+    .where(
+      and(accessFilter(hackathons, hackathonShares), isNotNull(hackathons.url)),
+    );
+  const hit = rows.find((r) => r.url && pageKey(r.url) === key);
+  if (!hit) return null;
+  const crit = await db
+    .select({ weight: criteria.weight })
+    .from(criteria)
+    .where(eq(criteria.hackathonId, hit.id));
+  const [counted] = await db
+    .select({ n: count() })
+    .from(tasks)
+    .where(eq(tasks.hackathonId, hit.id));
+  return {
+    id: hit.id,
+    name: hit.name,
+    deadlineAt: hit.deadlineAt,
+    criteriaCount: crit.length,
+    taskCount: Number(counted?.n ?? 0),
+    weightTotal: crit.reduce((s, c) => s + c.weight, 0),
+    message: `${hit.name} already has a board; returned it instead of a copy.`,
+  };
+}

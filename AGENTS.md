@@ -36,7 +36,7 @@ Before building common workspace or agent UI, read `agent-native-toolkit`; for s
 
 Hackathon copilot for solo builders. `/court` lists hackathons and imports a new one from a link; `/court/:hackathonId` groups tasks under their rubric criterion, with verdicts inline, a Checks tab, and a Submission tab that saves on blur. No sidebar: the top bar holds the Docket logo (home), settings, chats, and the agent toggle. Sign-in lands on `/court`.
 
-- Import: `read-link` the real page (and rules page), then `create-hackathon`. Never invent a deadline or rubric weight; ask instead.
+- Import: `read-link` the real page (and rules page), then `create-hackathon` (one board per page: a repeated import returns the existing board). Never invent a deadline or rubric weight; ask instead.
 - Rubric scores are 0-10 per criterion; the weighted total out of 100 is computed server-side. Only `save-judgment` writes scores, under the Judge Guard (`server/lib/guard.ts`).
 - Review (one button): one `recommend-verdicts` call sets `recommendedVerdict` + `courtArgument` on open tasks. It never scores. Only the user sets `verdict` (ship | fake | cut) unless they ask.
 - Radar (`/court`): open hackathons first by deadline, each with judged score, prize (`prizeUsd`, total USD pool, only if the page states it), and countdown. Two open deadlines within 48h clash: amber left bar and countdown, names in the tooltip.

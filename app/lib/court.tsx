@@ -1,4 +1,7 @@
 import { sendToAgentChatAndConfirm } from "@agent-native/core/client/agent-chat";
+import { ensureAgentEngineReadiness } from "@agent-native/core/client/agent-engine-readiness";
+import { openSettingsPage } from "@agent-native/core/client/navigation";
+import { useAgentEngineConfigured } from "@agent-native/core/client/use-agent-engine-configured";
 import { useT } from "@agent-native/core/client/i18n";
 import { useEffect, useState } from "react";
 
@@ -15,6 +18,14 @@ export async function askCourtAgent(
   context?: string,
   { openSidebar = true }: { openSidebar?: boolean } = {},
 ): Promise<boolean> {
+  // No model connected: send the user to connect one instead of failing quietly.
+  const ready = await ensureAgentEngineReadiness({ timeoutMs: 8000 }).catch(
+    () => "unknown" as const,
+  );
+  if (ready === "missing") {
+    openSettingsPage("model");
+    return false;
+  }
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const { delivered } = await sendToAgentChatAndConfirm({
       message,
@@ -83,5 +94,28 @@ export function Countdown({
     >
       {text}
     </time>
+  );
+}
+
+/** One row, shown only while the signed-in user has no model connected. */
+export function ModelGate() {
+  const t = useT();
+  const { missing } = useAgentEngineConfigured();
+  if (!missing) return null;
+  return (
+    <div
+      role="status"
+      title={t("court.noModelHint")}
+      className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 px-4 pt-6"
+    >
+      <span className="text-muted-foreground">{t("court.noModel")}</span>
+      <button
+        type="button"
+        onClick={() => openSettingsPage("model")}
+        className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-sm text-background hover:opacity-90"
+      >
+        {t("court.connectModel")}
+      </button>
+    </div>
   );
 }

@@ -36,13 +36,25 @@ export function parseDeliverables(raw: string | null): string[] {
   }
 }
 
-/** The hackathon row if the current user can see it, else a 404. */
-export async function requireHackathon(id: string) {
+/**
+ * The hackathon row if the current user holds at least `minRole` on it, else a
+ * 404 (never a 403, so ids of other people's boards don't leak). Anything that
+ * writes asks for "editor"; a viewer share or an org-visible board is read-only.
+ */
+export async function requireHackathon(
+  id: string,
+  minRole: "viewer" | "editor" = "viewer",
+) {
   const { hackathons, hackathonShares } = schema;
   const [row] = await getDb()
     .select()
     .from(hackathons)
-    .where(and(eq(hackathons.id, id), accessFilter(hackathons, hackathonShares)))
+    .where(
+      and(
+        eq(hackathons.id, id),
+        accessFilter(hackathons, hackathonShares, undefined, minRole),
+      ),
+    )
     .limit(1);
   if (!row) {
     fail("Hackathon not found.", { errorCode: "not_found", statusCode: 404 });

@@ -18,7 +18,7 @@ export default defineAction({
   outputSchema: z.object({ id: z.string(), message: z.string() }),
   run: async (args, ctx) => {
     if (!ctx?.userEmail) fail("Sign in first.", { statusCode: 401 });
-    await requireHackathon(args.hackathonId);
+    await requireHackathon(args.hackathonId, "editor");
     const db = getDb();
     const where = and(
       eq(schema.checks.id, args.id),

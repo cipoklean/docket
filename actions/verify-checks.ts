@@ -2,6 +2,7 @@ import { defineAction, fail } from "@agent-native/core/action";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 
+import { takeRate } from "../server/lib/limit.js";
 import { getDb, schema } from "../server/db/index.js";
 import { requireHackathon } from "../server/lib/court.js";
 import { createVerifier } from "../server/lib/verify.js";
@@ -29,6 +30,7 @@ export default defineAction({
   }),
   run: async ({ hackathonId, repoUrl, demoUrl }, ctx) => {
     if (!ctx?.userEmail) fail("Sign in first.", { statusCode: 401 });
+    await takeRate(ctx.userEmail, "verify-checks");
     const db = getDb();
     // Links typed and checked in one tap are saved here, so the check never
     // reads the old ones.
@@ -36,10 +38,10 @@ export default defineAction({
     if (repoUrl !== undefined) patch.repoUrl = repoUrl.trim() || null;
     if (demoUrl !== undefined) patch.demoUrl = demoUrl.trim() || null;
     if (Object.keys(patch).length) {
-      await requireHackathon(hackathonId);
+      await requireHackathon(hackathonId, "editor");
       await db.update(schema.hackathons).set(patch).where(eq(schema.hackathons.id, hackathonId));
     }
-    const h = await requireHackathon(hackathonId);
+    const h = await requireHackathon(hackathonId, "editor");
     const rows = await db
       .select()
       .from(schema.checks)

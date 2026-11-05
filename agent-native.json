@@ -4,6 +4,9 @@
     "firstRun": "off"
   },
   "doctor": {
-    "failOnBuild": false
+    "failOnBuild": false,
+    "dbToolScopingDenylist": {
+      "rate_hits": "Server-only per-user rate-limit counters; written by server/lib/limit.ts, never exposed to agent SQL - reviewed 2026-11-05."
+    }
   }
 }

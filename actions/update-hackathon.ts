@@ -52,7 +52,7 @@ export default defineAction({
   outputSchema: z.object({ id: z.string(), updated: z.array(z.string()) }),
   run: async (args, ctx) => {
     if (!ctx?.userEmail) fail("Sign in first.", { statusCode: 401 });
-    await requireHackathon(args.id);
+    await requireHackathon(args.id, "editor");
     const patch: Partial<typeof schema.hackathons.$inferInsert> = {};
     if (args.name !== undefined) patch.name = args.name;
     if (args.deadlineAt !== undefined)

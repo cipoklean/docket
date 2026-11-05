@@ -54,7 +54,7 @@ export default defineAction({
   outputSchema: z.object({ score: z.number().nullable(), message: z.string() }),
   run: async (args, ctx) => {
     const ownerEmail = ctx?.userEmail ?? fail("Sign in first.", { statusCode: 401 });
-    const row = await requireHackathon(args.hackathonId);
+    const row = await requireHackathon(args.hackathonId, "editor");
     const h = await loadDetail(row.id);
     const snap = await snapshot(h);
     if (row.judgedFingerprint === snap.fingerprint && h.score !== null) {

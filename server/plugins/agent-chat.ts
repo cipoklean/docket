@@ -29,6 +29,8 @@ export default createAgentChatPlugin({
   appId: "docket",
   actions: loadActionsFromStaticRegistry(actionsRegistry),
   mcp: { connectorCatalog: [], appApprovalPage: true },
+  // Multi-tenant host: no shell, filesystem, or run-code for the agent.
+  codeExecution: { production: "off" },
   initialToolNames: INITIAL_TOOL_NAMES,
   resolveOrgId: async (event) => (await getOrgContext(event)).orgId,
   systemPrompt: `You are the Docket agent: a blunt, practical copilot that helps a solo builder ship a hackathon entry before the deadline.

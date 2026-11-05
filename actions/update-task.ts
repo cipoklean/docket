@@ -1,5 +1,5 @@
 import { defineAction, fail } from "@agent-native/core/action";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb, schema } from "../server/db/index.js";
@@ -34,7 +34,20 @@ export default defineAction({
       .where(eq(schema.tasks.id, args.id))
       .limit(1);
     if (!task) fail("Task not found.", { errorCode: "not_found", statusCode: 404 });
-    await requireHackathon(task.hackathonId);
+    await requireHackathon(task.hackathonId, "editor");
+    if (args.criterionId) {
+      const [crit] = await db
+        .select({ id: schema.criteria.id })
+        .from(schema.criteria)
+        .where(
+          and(
+            eq(schema.criteria.id, args.criterionId),
+            eq(schema.criteria.hackathonId, task.hackathonId),
+          ),
+        )
+        .limit(1);
+      if (!crit) fail("Criterion not found on this board.", { errorCode: "not_found", statusCode: 404 });
+    }
     const { id, ...rest } = args;
     const patch = Object.fromEntries(
       Object.entries(rest).filter(

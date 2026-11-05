@@ -29,7 +29,7 @@ export default defineAction({
   run: async (args, ctx) => {
     const ownerEmail =
       ctx?.userEmail ?? fail("Sign in first.", { statusCode: 401 });
-    const h = await requireHackathon(args.hackathonId);
+    const h = await requireHackathon(args.hackathonId, "editor");
     const db = getDb();
     const [agg] = await db
       .select({ top: max(schema.checks.position) })

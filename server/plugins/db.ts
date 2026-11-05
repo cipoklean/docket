@@ -96,6 +96,17 @@ CREATE INDEX IF NOT EXISTS checks_hackathon_idx ON checks (hackathon_id, positio
       name: "radar-prize",
       sql: `ALTER TABLE hackathons ADD COLUMN IF NOT EXISTS prize_usd INTEGER`,
     },
+    {
+      version: 6,
+      name: "rate-limits",
+      sql: `CREATE TABLE IF NOT EXISTS rate_hits (
+  subject TEXT NOT NULL,
+  bucket TEXT NOT NULL,
+  window_start BIGINT NOT NULL,
+  hits INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (subject, bucket, window_start)
+)`,
+    },
   ],
   { table: "ship_court_migrations" },
 );

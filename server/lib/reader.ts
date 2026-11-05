@@ -14,10 +14,16 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import TurndownService from "turndown";
+import {
+  isBlockedExtensionUrlWithDns,
+  ssrfSafeFetch,
+} from "@agent-native/core/extensions/url-safety";
 
 export const MAX_CHARS = 60_000;
 const MIN_USEFUL_CHARS = 600;
 const TIMEOUT_MS = 20_000;
+/** Largest response body read from any page (PDFs included). */
+const MAX_BYTES = 10 * 1024 * 1024;
 const UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
 
@@ -74,12 +80,57 @@ export function assertPublicUrl(raw: string): URL {
   return url;
 }
 
+/**
+ * Fetch a public URL. ssrfSafeFetch re-checks the resolved IP at connect time
+ * and on every redirect hop, so a public name can't point or redirect into a
+ * private network. The body is cut off at MAX_BYTES.
+ */
+/** assertPublicUrl plus a DNS check, so a public-looking name that resolves to a private address is refused before any fetch or render. */
+export async function assertPublicUrlDns(raw: string): Promise<URL> {
+  const url = assertPublicUrl(raw);
+  if (await isBlockedExtensionUrlWithDns(url.href)) {
+    throw new ReadError("Private and local addresses can't be read.", "blocked_host");
+  }
+  return url;
+}
+
 export async function get(url: string, accept = "*/*") {
-  return fetch(url, {
-    redirect: "follow",
-    headers: { "user-agent": UA, accept, "accept-language": "en" },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+  const res = await ssrfSafeFetch(
+    url,
+    {
+      headers: { "user-agent": UA, accept, "accept-language": "en" },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    },
+    { maxRedirects: 5 },
+  );
+  return capped(res);
+}
+
+function capped(res: Response): Response {
+  const declared = Number(res.headers.get("content-length") ?? 0);
+  if (declared > MAX_BYTES) {
+    void res.body?.cancel();
+    throw new ReadError("That page is too large to read.", "fetch_failed");
+  }
+  if (!res.body) return res;
+  let seen = 0;
+  const limiter = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      seen += chunk.byteLength;
+      if (seen > MAX_BYTES) {
+        controller.error(new ReadError("That page is too large to read.", "fetch_failed"));
+        return;
+      }
+      controller.enqueue(chunk);
+    },
   });
+  const out = new Response(res.body.pipeThrough(limiter), {
+    status: res.status,
+    statusText: res.statusText,
+    headers: res.headers,
+  });
+  Object.defineProperty(out, "url", { value: res.url });
+  return out;
 }
 
 function clip(markdown: string) {
@@ -302,10 +353,12 @@ function readHtml(html: string, finalUrl: string): ReadResult {
 }
 
 async function readRendered(url: string): Promise<ReadResult | null> {
-  const res = await fetch(`https://r.jina.ai/${url}`, {
-    headers: { accept: "text/plain", "x-return-format": "markdown" },
-    signal: AbortSignal.timeout(45_000),
-  });
+  const res = capped(
+    await fetch(`https://r.jina.ai/${url}`, {
+      headers: { accept: "text/plain", "x-return-format": "markdown" },
+      signal: AbortSignal.timeout(45_000),
+    }),
+  );
   if (!res.ok) return null;
   const text = await res.text();
   const title = text.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? null;
@@ -335,7 +388,7 @@ export async function readLink(
   rawUrl: string,
   opts: { render?: "auto" | "always" | "never" } = {},
 ): Promise<ReadResult> {
-  const url = assertPublicUrl(rawUrl);
+  const url = await assertPublicUrlDns(rawUrl);
   const render = opts.render ?? "auto";
 
   if (render !== "always") {

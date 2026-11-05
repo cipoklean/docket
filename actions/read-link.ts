@@ -1,6 +1,7 @@
-import { defineAction, defineActionErrors } from "@agent-native/core/action";
+import { defineAction, defineActionErrors, fail } from "@agent-native/core/action";
 import { z } from "zod";
 
+import { takeRate } from "../server/lib/limit.js";
 import { ReadError, readLink } from "../server/lib/reader.js";
 
 const errors = defineActionErrors("invalid_url", "blocked_host", "fetch_failed", "empty");
@@ -30,7 +31,9 @@ export default defineAction({
   errors,
   http: { method: "GET" },
   readOnly: true,
-  run: async ({ url, render }) => {
+  run: async ({ url, render }, ctx) => {
+    if (!ctx?.userEmail) fail("Sign in first.", { statusCode: 401 });
+    await takeRate(ctx.userEmail, "read-link");
     try {
       return await readLink(url, { render });
     } catch (error) {

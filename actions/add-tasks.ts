@@ -32,7 +32,7 @@ export default defineAction({
   run: async (args, ctx) => {
     const ownerEmail =
       ctx?.userEmail ?? fail("Sign in first.", { statusCode: 401 });
-    const h = await requireHackathon(args.hackathonId);
+    const h = await requireHackathon(args.hackathonId, "editor");
     const db = getDb();
     const [agg] = await db
       .select({ top: max(schema.tasks.position) })
@@ -53,12 +53,21 @@ export default defineAction({
       return true;
     });
     if (!fresh.length) return { ids: [], message: "Every task is already on the board." };
+    // Only link criteria that belong to this board.
+    const own = new Set(
+      (
+        await db
+          .select({ id: schema.criteria.id })
+          .from(schema.criteria)
+          .where(eq(schema.criteria.hackathonId, h.id))
+      ).map((c) => c.id),
+    );
     const rows = fresh.map((t, i) => ({
       id: crypto.randomUUID(),
       hackathonId: h.id,
       title: t.title,
       notes: t.notes ?? null,
-      criterionId: t.criterionId ?? null,
+      criterionId: t.criterionId && own.has(t.criterionId) ? t.criterionId : null,
       position: start + i,
       ownerEmail,
       orgId: h.orgId,

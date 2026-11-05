@@ -31,7 +31,7 @@ export default defineAction({
   }),
   run: async (args, ctx) => {
     if (!ctx?.userEmail) fail("Sign in first.", { statusCode: 401 });
-    await requireHackathon(args.hackathonId);
+    await requireHackathon(args.hackathonId, "editor");
     const db = getDb();
     const ids = args.recommendations.map((r) => r.taskId);
     const open = await db

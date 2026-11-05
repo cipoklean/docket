@@ -4,6 +4,7 @@ import { accessFilter } from "@agent-native/core/sharing";
 import { and, count, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 
+import { takeRate } from "../server/lib/limit.js";
 import { getDb, schema } from "../server/db/index.js";
 import { toIso } from "../server/lib/court.js";
 
@@ -85,6 +86,7 @@ export default defineAction({
   run: async (args, ctx) => {
     const ownerEmail =
       ctx?.userEmail ?? fail("Sign in first.", { statusCode: 401 });
+    await takeRate(ownerEmail, "create-hackathon");
     const orgId = ctx?.orgId ?? null;
     const deadlineAt = toIso(args.deadlineAt, "deadlineAt");
     const existing = args.url ? await findByUrl(args.url) : null;
@@ -172,7 +174,10 @@ async function findByUrl(url: string) {
     })
     .from(hackathons)
     .where(
-      and(accessFilter(hackathons, hackathonShares), isNotNull(hackathons.url)),
+      and(
+        accessFilter(hackathons, hackathonShares, undefined, "editor"),
+        isNotNull(hackathons.url),
+      ),
     );
   const hit = rows.find((r) => r.url && pageKey(r.url) === key);
   if (!hit) return null;

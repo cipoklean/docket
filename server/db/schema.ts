@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 import {
   createSharesTable,
   ownableColumns,
@@ -104,3 +104,19 @@ export const checks = pgTable("checks", {
   ownerEmail: text("owner_email").notNull(),
   orgId: text("org_id"),
 });
+
+/**
+ * Per-user request counters for actions that reach the network on the
+ * server's behalf (server/lib/limit.ts). Keyed by `subject`, not owner_email,
+ * so the agent's scoped SQL tools can't see or reset them.
+ */
+export const rateHits = pgTable(
+  "rate_hits",
+  {
+    subject: text("subject").notNull(),
+    bucket: text("bucket").notNull(),
+    windowStart: bigint("window_start", { mode: "number" }).notNull(),
+    hits: integer("hits").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.subject, t.bucket, t.windowStart] })],
+);

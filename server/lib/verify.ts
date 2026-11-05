@@ -3,7 +3,7 @@
  * demo link and returns pass, fail, or unknown with one line of evidence.
  * No model is involved: the point is that a check can't be talked into green.
  */
-import { assertPublicUrl, get } from "./reader.js";
+import { assertPublicUrlDns, get } from "./reader.js";
 
 export type CheckKind =
   | "repo_public"
@@ -141,7 +141,7 @@ export function createVerifier(links: Links) {
       case "demo_live": {
         if (!links.demoUrl) return { status: "unknown", evidence: "Add your demo link" };
         try {
-          const url = assertPublicUrl(links.demoUrl);
+          const url = await assertPublicUrlDns(links.demoUrl);
           // A rule that asks for a Clips recording isn't met by any other video.
           if ((param?.toLowerCase() === "clips" || /\bclips?\b/i.test(label)) && !isClipsLink(url))
             return { status: "fail", evidence: `Not a Clips link (${url.hostname})` };
@@ -192,7 +192,7 @@ function isClipsLink(url: URL) {
 
 /** Video length in seconds from the page's own metadata, or null. */
 async function videoSeconds(demoUrl: string): Promise<number | null> {
-  const url = assertPublicUrl(demoUrl);
+  const url = await assertPublicUrlDns(demoUrl);
   const res = await get(url.href, "text/html,*/*");
   if (!res.ok) return null;
   const html = (await res.text()).slice(0, 2_000_000);

@@ -7,7 +7,7 @@ import { toIso } from "../server/lib/court.js";
 
 export default defineAction({
   description:
-    "Create a hackathon board from its rules: name, deadline, rubric criteria (weights in percent, should total 100), deliverables, and starter tasks. Read the page with read-link first; never invent a deadline or rubric the page does not state.",
+    "Create a hackathon board from its rules: name, deadline, prize pool, rubric criteria (weights in percent, should total 100), deliverables, and starter tasks. Read the page with read-link first; never invent a deadline or rubric the page does not state.",
   schema: z.object({
     name: z.string().min(1).describe("Hackathon name"),
     url: z.string().url().optional().describe("Hackathon page URL"),
@@ -16,6 +16,12 @@ export default defineAction({
       .describe(
         "Submission deadline, ISO 8601 with offset, e.g. 2026-11-09T23:59:00-08:00",
       ),
+    prizeUsd: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe("Total cash prize pool in USD, only when the page states it"),
     summary: z
       .string()
       .max(2000)
@@ -112,6 +118,7 @@ export default defineAction({
         name: args.name,
         url: args.url ?? null,
         deadlineAt,
+        prizeUsd: args.prizeUsd ?? null,
         summary: args.summary ?? null,
         deliverables: JSON.stringify(args.deliverables),
         ownerEmail,

@@ -7,6 +7,8 @@ const messages = {
     importFailed: "Couldn’t import {{host}}",
     countdown: "{{d}}d {{h}}h {{m}}m",
     closed: "Closed",
+    clash: "{{deadline}} · within 48h of {{names}}",
+    prizePerHour: "{{amount}} per hour left",
     back: "Back",
     notFound: "Hackathon not found.",
     tabTasks: "Tasks",

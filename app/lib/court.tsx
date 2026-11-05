@@ -27,7 +27,7 @@ function useNow(intervalMs = 30_000) {
   return now;
 }
 
-function localDeadline(deadlineAt: string) {
+export function localDeadline(deadlineAt: string) {
   return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     month: "short",
@@ -42,9 +42,12 @@ function localDeadline(deadlineAt: string) {
 export function Countdown({
   deadlineAt,
   className,
+  title,
 }: {
   deadlineAt: string;
-  className?: string;
+  className?: string | undefined;
+  /** Replaces the default tooltip (the local deadline). */
+  title?: string | undefined;
 }) {
   const t = useT();
   const ms = Date.parse(deadlineAt) - useNow();
@@ -60,7 +63,7 @@ export function Countdown({
   return (
     <time
       dateTime={deadlineAt}
-      title={localDeadline(deadlineAt)}
+      title={title ?? localDeadline(deadlineAt)}
       className={cn(
         "shrink-0 font-mono tabular-nums",
         ms > 0 && ms < 86_400_000 ? "text-destructive" : "text-muted-foreground",

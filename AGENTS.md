@@ -39,6 +39,7 @@ Hackathon copilot for solo builders. `/court` lists hackathons and imports a new
 - Import: `read-link` the real page (and rules page), then `create-hackathon`. Never invent a deadline or rubric weight; ask instead.
 - Rubric scores are 0-10 per criterion; the weighted total out of 100 is computed server-side. Only `save-judgment` writes scores, under the Judge Guard (`server/lib/guard.ts`).
 - Review (one button): one `recommend-verdicts` call sets `recommendedVerdict` + `courtArgument` on open tasks. It never scores. Only the user sets `verdict` (ship | fake | cut) unless they ask.
+- Radar (`/court`): open hackathons first by deadline, each with judged score, prize (`prizeUsd`, total USD pool, only if the page states it), and countdown. Two open deadlines within 48h clash: amber left bar and countdown, names in the tooltip.
 - Times are stored as UTC ISO; send ISO 8601 with an offset and show the user's local time.
 - On board pages `navigation` adds `hackathonId`.
 - UI rule: no taglines, helper text, or secondary labels. If a screen needs them, fix the layout. Details live in tooltips (`title`).
@@ -50,7 +51,7 @@ Hackathon copilot for solo builders. `/court` lists hackathons and imports a new
 | --- | --- |
 | read-link | Read any link (pages, JS sites, PDFs, X posts, GitHub) as Markdown |
 | create-hackathon | Board from name, deadline, rubric, deliverables, tasks |
-| list-hackathons | Boards, soonest deadline first |
+| list-hackathons | Radar: open boards first, prize, judged score, 48h clashes |
 | get-hackathon | Full board with scores and tasks |
 | update-hackathon | Patch deadline, summary, deliverables, submission draft, demo script, repo/demo links |
 | add-tasks | Append tasks |

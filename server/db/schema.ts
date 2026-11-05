@@ -24,6 +24,8 @@ export const hackathons = pgTable("hackathons", {
   demoUrl: text("demo_url"),
   /** Fingerprint of the submission at the last judge pass (server/lib/guard.ts). */
   judgedFingerprint: text("judged_fingerprint"),
+  /** Total cash prize pool in USD, as the hackathon page states it. */
+  prizeUsd: integer("prize_usd"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),

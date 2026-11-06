@@ -26,14 +26,19 @@ export async function askCourtAgent(
     openSettingsPage("model");
     return false;
   }
+  // One id for every attempt, so a retry never posts the prompt twice.
+  const submitMessageId = crypto.randomUUID();
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const { delivered } = await sendToAgentChatAndConfirm({
-      message,
-      ...(context ? { context } : {}),
-      submit: true,
-      openSidebar,
-      chatTarget: "local",
-    });
+    const { delivered } = await sendToAgentChatAndConfirm(
+      {
+        message,
+        ...(context ? { context } : {}),
+        submit: true,
+        openSidebar,
+        chatTarget: "local",
+      },
+      { submitMessageId, timeoutMs: 10_000 },
+    );
     if (delivered) return true;
     await new Promise((r) => window.setTimeout(r, 2000));
   }

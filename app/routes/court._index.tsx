@@ -51,11 +51,9 @@ export default function CourtIndexRoute() {
       host = new URL(target).hostname.replace(/^www\./, "");
     } catch {}
     setPending({ host, known: ids, failed: false });
-    void askCourtAgent(t("court.importPrompt", { url: target }), undefined, {
-      openSidebar: false,
-    }).then((delivered) => {
-      if (!delivered) setPending((p) => (p ? { ...p, failed: true } : p));
-    });
+    // The chat opens so any question the agent asks is in view; the row stays
+    // until the board exists (or the 5-minute timeout marks it failed).
+    void askCourtAgent(t("court.importPrompt", { url: target }));
     setUrl("");
   }
 

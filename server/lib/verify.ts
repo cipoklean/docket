@@ -142,9 +142,19 @@ export function createVerifier(links: Links) {
         if (!links.demoUrl) return { status: "unknown", evidence: "Add your demo link" };
         try {
           const url = await assertPublicUrlDns(links.demoUrl);
-          // A rule that asks for a Clips recording isn't met by any other video.
-          if ((param?.toLowerCase() === "clips" || /\bclips?\b/i.test(label)) && !isClipsLink(url))
-            return { status: "fail", evidence: `Not a Clips link (${url.hostname})` };
+          // A rule that names a platform is only met there. The rule's own words
+          // decide, so a stray param can't fail an X or YouTube demo.
+          const where = requiredPlatform(label);
+          if (where && !where.match(url))
+            return { status: "fail", evidence: `Not a ${where.name} link (${url.hostname})` };
+          const x = xStatusId(url);
+          if (x) {
+            const post = await once(`x:${x}`, () => xPost(x));
+            if (!post) return { status: "fail", evidence: "X post not public" };
+            return post.videos.length
+              ? { status: "pass", evidence: "Public X post with video" }
+              : { status: "fail", evidence: "X post has no video" };
+          }
           const res = await get(url.href, "text/html,*/*");
           return res.ok
             ? { status: "pass", evidence: `Opens publicly (${res.status})` }
@@ -160,11 +170,12 @@ export function createVerifier(links: Links) {
         const seconds = await once("len", () => videoSeconds(links.demoUrl!));
         if (seconds === null)
           return { status: "unknown", evidence: "Length not readable from this link" };
-        const mmss = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+        const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+        const mmss = clock(seconds);
         if (!Number.isFinite(max) || max <= 0) return { status: "pass", evidence: mmss };
         return seconds <= max * 60
-          ? { status: "pass", evidence: `${mmss}, limit ${max}:00` }
-          : { status: "fail", evidence: `${mmss}, over the ${max}:00 limit` };
+          ? { status: "pass", evidence: `${mmss}, limit ${clock(max * 60)}` }
+          : { status: "fail", evidence: `${mmss}, over the ${clock(max * 60)} limit` };
       }
     }
   }
@@ -183,6 +194,36 @@ export function createVerifier(links: Links) {
   };
 }
 
+const PLATFORMS = [
+  { name: "Clips", words: /\bclips?\b/i, match: (u: URL) => isClipsLink(u) },
+  { name: "X", words: /\b(x\.com|twitter|on x|x post)\b/i, match: (u: URL) => xStatusId(u) !== null },
+  { name: "YouTube", words: /\byoutube\b/i, match: (u: URL) => /(^|\.)(youtube\.com|youtu\.be)$/i.test(u.hostname) },
+];
+
+function requiredPlatform(label?: string) {
+  return label ? (PLATFORMS.find((p) => p.words.test(label)) ?? null) : null;
+}
+
+/** The post id of an x.com / twitter.com status link, or null. */
+function xStatusId(url: URL) {
+  if (!/^(www\.|mobile\.)?(x|twitter)\.com$/i.test(url.hostname)) return null;
+  return /\/status(?:es)?\/(\d+)/.exec(url.pathname)?.[1] ?? null;
+}
+
+/** A public X post's videos via fxtwitter (X itself serves bots a shell). */
+async function xPost(id: string): Promise<{ videos: { duration: number }[] } | null> {
+  const res = await get(`https://api.fxtwitter.com/i/status/${id}`, "application/json");
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => null)) as {
+    tweet?: { media?: { videos?: { duration?: number }[] } };
+  } | null;
+  if (!data?.tweet) return null;
+  const videos = (data.tweet.media?.videos ?? [])
+    .filter((v) => typeof v.duration === "number")
+    .map((v) => ({ duration: v.duration as number }));
+  return { videos };
+}
+
 /** Hosted Clips (clips.agent-native.com) or a self-hosted Clips share link. */
 function isClipsLink(url: URL) {
   const host = url.hostname.toLowerCase();
@@ -193,6 +234,11 @@ function isClipsLink(url: URL) {
 /** Video length in seconds from the page's own metadata, or null. */
 async function videoSeconds(demoUrl: string): Promise<number | null> {
   const url = await assertPublicUrlDns(demoUrl);
+  const x = xStatusId(url);
+  if (x) {
+    const post = await xPost(x);
+    return post?.videos[0] ? Math.round(post.videos[0].duration) : null;
+  }
   const res = await get(url.href, "text/html,*/*");
   if (!res.ok) return null;
   const html = (await res.text()).slice(0, 2_000_000);

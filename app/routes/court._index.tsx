@@ -20,26 +20,20 @@ export default function CourtIndexRoute() {
   const navigate = useNavigate();
   const { data } = useActionQuery("list-hackathons", {});
   const ids = data?.hackathons.map((h) => h.id) ?? [];
-  // An import runs in the background; its row stays here until the board exists.
+  // An import runs in the open chat; its row stays here until the board exists.
+  // No timeout: the agent may be waiting on the user, and the chat shows that.
   const [pending, setPending] = useState<{
     host: string;
     known: string[];
-    failed: boolean;
   } | null>(null);
 
   useEffect(() => {
-    if (!pending || pending.failed) return;
+    if (!pending) return;
     const fresh = data?.hackathons.find((h) => !pending.known.includes(h.id));
     if (fresh) {
       setPending(null);
       navigate(`/court/${encodeURIComponent(fresh.id)}`);
-      return;
     }
-    const timer = window.setTimeout(
-      () => setPending((p) => (p ? { ...p, failed: true } : p)),
-      5 * 60_000,
-    );
-    return () => window.clearTimeout(timer);
   }, [data, pending, navigate]);
 
   function importHackathon(event: React.FormEvent<HTMLFormElement>) {
@@ -50,9 +44,8 @@ export default function CourtIndexRoute() {
     try {
       host = new URL(target).hostname.replace(/^www\./, "");
     } catch {}
-    setPending({ host, known: ids, failed: false });
-    // The chat opens so any question the agent asks is in view; the row stays
-    // until the board exists (or the 5-minute timeout marks it failed).
+    setPending({ host, known: ids });
+    // The chat opens so any question the agent asks is in view.
     void askCourtAgent(t("court.importPrompt", { url: target }));
     setUrl("");
   }
@@ -76,15 +69,9 @@ export default function CourtIndexRoute() {
         {pending ? (
           <li
             aria-live="polite"
-            className={
-              pending.failed
-                ? "-mx-3 px-3 py-3 text-destructive"
-                : "-mx-3 animate-pulse px-3 py-3 text-muted-foreground"
-            }
+            className="-mx-3 animate-pulse px-3 py-3 text-muted-foreground"
           >
-            {pending.failed
-              ? t("court.importFailed", { host: pending.host })
-              : t("court.importing", { host: pending.host })}
+            {t("court.importing", { host: pending.host })}
           </li>
         ) : null}
         {data?.hackathons.map((h) => {

@@ -11,7 +11,7 @@ const CLASH_MS = 48 * 3_600_000;
 
 export default defineAction({
   description:
-    "Radar: every hackathon on the user's boards, open ones first by deadline, with the prize pool in USD, the judged score out of 100, and clashesWith: other open hackathons due within 48 hours of this one.",
+    "Radar: every hackathon on the user's boards, open ones first by deadline (a submitted entry is not open), with the prize pool in USD, the judged score out of 100, and clashesWith: other open hackathons due within 48 hours of this one.",
   schema: z.object({}),
   outputSchema: z.object({
     hackathons: z.array(
@@ -21,6 +21,7 @@ export default defineAction({
         url: z.string().nullable(),
         deadlineAt: z.string(),
         open: z.boolean(),
+        submitted: z.boolean(),
         prizeUsd: z.number().nullable(),
         score: z.number().nullable(),
         clashesWith: z.array(z.string()),
@@ -43,6 +44,7 @@ export default defineAction({
         url: hackathons.url,
         deadlineAt: hackathons.deadlineAt,
         prizeUsd: hackathons.prizeUsd,
+        submittedAt: hackathons.submittedAt,
       })
       .from(hackathons)
       .where(accessFilter(hackathons, hackathonShares))
@@ -65,12 +67,15 @@ export default defineAction({
       : [];
     const now = Date.now();
     const at = (r: { deadlineAt: string }) => Date.parse(r.deadlineAt);
-    const live = rows.filter((r) => at(r) > now);
-    const out = rows.map((r) => {
-      const open = at(r) > now;
+    const isOpen = (r: { deadlineAt: string; submittedAt: string | null }) =>
+      at(r) > now && !r.submittedAt;
+    const live = rows.filter(isOpen);
+    const out = rows.map(({ submittedAt, ...r }) => {
+      const open = isOpen({ ...r, submittedAt });
       return {
         ...r,
         open,
+        submitted: Boolean(submittedAt),
         score: weightedScore(scores.filter((s) => s.hackathonId === r.id)),
         clashesWith: open
           ? live

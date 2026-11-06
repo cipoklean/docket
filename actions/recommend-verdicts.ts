@@ -31,7 +31,8 @@ export default defineAction({
   }),
   run: async (args, ctx) => {
     if (!ctx?.userEmail) fail("Sign in first.", { statusCode: 401 });
-    await requireHackathon(args.hackathonId, "editor");
+    const row = await requireHackathon(args.hackathonId, "editor");
+    if (row.submittedAt) fail("This entry is submitted. Reopen the board to review it again.", { errorCode: "submitted" });
     const db = getDb();
     const ids = args.recommendations.map((r) => r.taskId);
     const open = await db

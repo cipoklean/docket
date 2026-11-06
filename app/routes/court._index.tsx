@@ -109,6 +109,11 @@ export default function CourtIndexRoute() {
                     {usd(h.prizeUsd)}
                   </span>
                 ) : null}
+                {h.submitted ? (
+                  <span className="shrink-0 text-sm text-muted-foreground">
+                    {t("court.submitted")}
+                  </span>
+                ) : (
                 <Countdown
                   deadlineAt={h.deadlineAt}
                   className={clash && !urgent ? "text-amber-500" : undefined}
@@ -121,6 +126,7 @@ export default function CourtIndexRoute() {
                       : undefined
                   }
                 />
+                )}
               </Link>
             </li>
           );

@@ -26,6 +26,8 @@ export const hackathons = pgTable("hackathons", {
   judgedFingerprint: text("judged_fingerprint"),
   /** Total cash prize pool in USD, as the hackathon page states it. */
   prizeUsd: integer("prize_usd"),
+  /** Set when the user marks the entry submitted; the board is then closed. */
+  submittedAt: text("submitted_at"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),

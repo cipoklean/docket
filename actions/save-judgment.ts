@@ -55,6 +55,7 @@ export default defineAction({
   run: async (args, ctx) => {
     const ownerEmail = ctx?.userEmail ?? fail("Sign in first.", { statusCode: 401 });
     const row = await requireHackathon(args.hackathonId, "editor");
+    if (row.submittedAt) fail("This entry is submitted. Reopen the board to judge it again.", { errorCode: "submitted" });
     const h = await loadDetail(row.id);
     const snap = await snapshot(h);
     if (row.judgedFingerprint === snap.fingerprint && h.score !== null) {

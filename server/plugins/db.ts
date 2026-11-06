@@ -107,6 +107,11 @@ CREATE INDEX IF NOT EXISTS checks_hackathon_idx ON checks (hackathon_id, positio
   PRIMARY KEY (subject, bucket, window_start)
 )`,
     },
+    {
+      version: 7,
+      name: "submitted",
+      sql: `ALTER TABLE hackathons ADD COLUMN IF NOT EXISTS submitted_at TEXT`,
+    },
   ],
   { table: "ship_court_migrations" },
 );

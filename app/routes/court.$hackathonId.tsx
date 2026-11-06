@@ -79,6 +79,14 @@ export default function HackathonRoute() {
   const onError = (err: unknown) =>
     toast.error(actionErrorMessage(err) ?? t("court.saveFailed"));
 
+  const markSubmitted = useActionMutation("update-hackathon", {
+    onError,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["action", "get-hackathon"] });
+      queryClient.invalidateQueries({ queryKey: ["action", "list-hackathons"] });
+    },
+  });
+
   const patchTask = useActionMutation("update-task", {
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey });
@@ -155,7 +163,11 @@ export default function HackathonRoute() {
             h.name
           )}
         </h1>
-        <Countdown deadlineAt={h.deadlineAt} className="shrink-0 text-sm" />
+        {h.submittedAt ? (
+          <span className="shrink-0 text-sm text-muted-foreground">{t("court.submitted")}</span>
+        ) : (
+          <Countdown deadlineAt={h.deadlineAt} className="shrink-0 text-sm" />
+        )}
       </header>
 
       <Tabs defaultValue="tasks" className="mt-6">
@@ -180,7 +192,27 @@ export default function HackathonRoute() {
 
         <TabsContent value="tasks" className="mt-6">
           <div className="flex justify-end gap-2">
-            {(["review", "judge"] as const).map((kind) => (
+            {h.submittedAt ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={markSubmitted.isPending}
+                onClick={() => markSubmitted.mutate({ id: h.id, submitted: false })}
+              >
+                {t("court.reopen")}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={markSubmitted.isPending || busy !== null}
+                title={t("court.markSubmittedHint")}
+                onClick={() => markSubmitted.mutate({ id: h.id, submitted: true })}
+              >
+                {t("court.markSubmitted")}
+              </Button>
+            )}
+            {(h.submittedAt ? [] : (["review", "judge"] as const)).map((kind) => (
               <Button
                 key={kind}
                 size="sm"
